@@ -30,8 +30,8 @@ entry $
     ;mov     rax, SYS_WRITE
     ;syscall
 
-    push r11
-    push r12
+    push    r11
+    push    r12
     ; allocate memory for token loop
     ; assume less than 6x file size mem is needed
     mov     rax, r13
@@ -197,8 +197,8 @@ print_uint:
     syscall
 
     pop     rdi
-    mov rsp, rbp
-    pop rbp
+    mov     rsp, rbp
+    pop     rbp
     ret
 
 ; input:
@@ -228,7 +228,7 @@ uitds:
     .loop_uitds_write:
         xor     rdx, rdx
         div     r8
-        add     rdx, 48 ; rest is digit, add 48 for ascii conversion
+        add     rdx, 48 ; rest div = digit, num + 48 => ascii num
         ; move only a byte into the stack
         ; -1 because rcx is len not index
         mov     BYTE [rsi + rcx - 1], dl 
@@ -254,20 +254,17 @@ error_file_not_found:
 
 
 segment readable writable
-buf     rb  80
+buf         rb  80
 
 
 segment readable
-newline db 10
-
-text    db  "hello this is a test"
-textlen = 20
-indexChar db "i"
-
-
-file0       db  "arith.ff", 0
-file0len    =   8
+; PRINTING
+newline     db 10
 
 ; ERRORS
 err0        db "File not found"
 err0len     =   14
+
+; HARDCODED
+file0       db  "arith.ff", 0
+file0len    =   8
