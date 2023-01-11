@@ -1,0 +1,34 @@
+SYS_READ    = 0
+SYS_WRITE   = 1
+SYS_OPEN    = 2
+SYS_CLOSE   = 3
+SYS_STAT    = 4
+SYS_FSTAT   = 5
+SYS_LSTAT   = 6
+SYS_POLL    = 7
+SYS_LSEEK   = 8
+SYS_MMAP    = 9
+SYS_MPROT   = 10
+SYS_MUNMAP  = 11
+SYS_EXIT    = 60
+
+STDIN       = 0
+STDOUT      = 1
+STDERR      = 2
+
+O_RDONLY    = 0
+O_WRONLY    = 1
+O_RDWR      = 2
+
+PROT_NONE   = 0
+PROT_READ   = 1
+PROT_WRITE  = 2
+
+PROT_GROWSDOWN  = 01000000h
+PROT_GROWSUP    = 02000000h
+
+MAP_FILE        = 0
+MAP_SHARED      = 1
+MAP_PRIVATE     = 2
+MAP_FIXED       = 10h
+MAP_ANONYMOUS   = 20h
