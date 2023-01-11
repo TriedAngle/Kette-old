@@ -16,56 +16,58 @@ tkExit      = 100
 segment readable executable
 
 entry $
+    push    rbp
+    mov     rbp, rsp
+
     mov     rdi, file0
     call    open_file
 
-    ; store mmap'd file add and len
-    mov     r12, rax ; ptr file mem
-    mov     r13, rdx ; len file mem
-
-    ; print the file
-    ;mov     rdi, STDOUT
-    ;mov     rsi, r12
-    ;mov     rdx, r13
-    ;mov     rax, SYS_WRITE
-    ;syscall
-
-    push    r11
-    push    r12
+    push    rax ; ptr file mem | rbp - 8
+    push    rdx ; len file mem | rbp - 16
+     
     ; allocate memory for token loop
-    ; assume less than 6x file size mem is needed
-    mov     rax, r13
-    mov     rdi, 6
-    mul     rdi
-    mov     rdi, rax
+    ; start out with 128 bytes
+    mov     rdi, 128
     call map_memory
+    
+    push    rax ; ptr token mem | rbp - 24
+    push    rdi ; len token mem | rbp - 32
 
-    ; store mem add and len
-    mov     r14, rax
-    mov     r15, rdi
-
-    ; token loop
-    xor     rcx, rcx ; file index
-    xor     rbx, r15 ; token index
+    ; iterate lines
+    xor     r12, r12 ; line counter
+    xor     r13, r13 ; col counter
+    xor     rbx, rbx ; charactar counter
     .token_loop:
-        lea     rdi, [r12 + rcx]
-        push    rcx
-        call    print_char
-        pop     rcx
+        lea     rax, [rbp - 8] ; ptr
+        ; increase line counter & reset col counter
+        cmp     BYTE [rax + rbx], 10
+        jnz     .no_newline
+        inc     r12
+        xor     r13, r13
+        .no_newline:
+      
+        ; print the code
+        ;mov     rax, [rbp - 8]
+        ;lea     rdi, [rax + rbx]
+        ;call    print_char
         
-        inc     rcx
-        cmp     rcx, r13
+        inc     r13
+        inc     rbx
+        cmp     rbx, [rbp - 16]
         jnz     .token_loop
     
     ; dealloc file
-    mov     rdi, r12
-    mov     rsi, r13
+    mov     rdi, [rbp - 8]
+    mov     rsi, [rbp - 16]
     call unmap_memory
 
     ; dealloc tokenspace
-    mov     rdi, r14
-    mov     rsi, r15
+    mov     rdi, [rbp - 24]
+    mov     rsi, [rbp - 32]
     call unmap_memory
+
+    mov     rsp, rbp
+    pop     rbp
 
     mov     rdi, 0
     mov     rax, SYS_EXIT
@@ -170,6 +172,13 @@ print_newline:
     syscall
     ret
 
+print_a:
+    lea     rsi, [char_a]
+    mov     rdx, 1
+    mov     rdi, STDOUT
+    mov     rax, SYS_WRITE
+    syscall
+    ret
 ; prints uint
 ; input:
 ;   rdi: value
@@ -260,7 +269,7 @@ buf         rb  80
 segment readable
 ; PRINTING
 newline     db 10
-
+char_a      db 65
 ; ERRORS
 err0        db "File not found"
 err0len     =   14
