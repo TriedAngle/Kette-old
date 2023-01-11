@@ -20,43 +20,41 @@ entry $
     call    open_file
 
     ; store mmap'd file add and len
-    mov     r11, rax ; ptr file mem
-    mov     r12, rdx ; len file mem
+    mov     r12, rax ; ptr file mem
+    mov     r13, rdx ; len file mem
 
     ; print the file
-    mov     rdi, STDOUT
-    mov     rsi, r11
-    mov     rdx, r12
-    mov     rax, SYS_WRITE
-    syscall
+    ;mov     rdi, STDOUT
+    ;mov     rsi, r12
+    ;mov     rdx, r13
+    ;mov     rax, SYS_WRITE
+    ;syscall
 
     push r11
     push r12
     ; allocate memory for token loop
     ; assume less than 6x file size mem is needed
-    mov     rax, r12
+    mov     rax, r13
     mov     rdi, 6
     mul     rdi
     mov     rdi, rax
     call map_memory
 
     ; store mem add and len
-    mov     r13, rax
-    mov     r14, rdi
+    mov     r14, rax
+    mov     r15, rdi
 
     ; token loop
     xor     rcx, rcx ; file index
-    xor     r15, r15 ; token index
-    pop r12
-    pop r11
+    xor     rbx, r15 ; token index
     .token_loop:
-        lea     rdi, [r11 + rcx]
+        lea     rdi, [r12 + rcx]
         push    rcx
         call    print_char
         pop     rcx
         
         inc     rcx
-        cmp     rcx, r12
+        cmp     rcx, r13
         jnz     .token_loop
     
     ; dealloc file
