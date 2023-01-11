@@ -58,13 +58,13 @@ entry $
         jnz     .token_loop
     
     ; dealloc file
-    mov     rdi, r11
-    mov     rsi, r12
+    mov     rdi, r12
+    mov     rsi, r13
     call unmap_memory
 
     ; dealloc tokenspace
-    mov     rdi, r13
-    mov     rsi, r14
+    mov     rdi, r14
+    mov     rsi, r15
     call unmap_memory
 
     mov     rdi, 0
