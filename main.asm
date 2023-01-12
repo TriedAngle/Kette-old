@@ -3,15 +3,15 @@ format ELF64 executable 3
 include "linux.inc"
 
 ; Tokens
-tkPush      = 0
-tkAdd       = 1
-tkSub       = 2
-tkMul       = 3
-tkDiv       = 4
-tkMod       = 5
-tkDup       = 6
-tkDump      = 7
-tkExit      = 100
+tkAdd       = 0
+tkSub       = 1
+tkMul       = 2
+tkDiv       = 3
+tkMod       = 4
+tkDump      = 5
+tkpush      = 6
+tkDup       = 7
+tkExit      = 255
 
 segment readable executable
 
@@ -28,7 +28,7 @@ entry $
     ; allocate memory for token loop
     ; start out with 128 bytes
     mov     rdi, 128
-    call map_memory
+    call    map_memory
     
     push    rax ; ptr token mem | rbp - 24
     push    rdi ; len token mem | rbp - 32
@@ -51,11 +51,6 @@ entry $
         jnz     .no_newline
         ; increase line counter & reset col counter
         inc     QWORD [rbp - 40]
-
-        call print_b
-        mov     rdi, [rbp - 40]
-        call    print_uint
-        call    print_newline
         mov     QWORD [rbp - 48], 0
 
         .no_newline:
@@ -65,17 +60,105 @@ entry $
         cmp     BYTE [rax + rbx], 32 ; whitespace
         jz      .white_space
         cmp     BYTE [rax + rbx], 10 ; new line
-        jz      .end_word
+        jz      .white_space
         ; code here     
         
-        call print_a
+        ; reset opcode register
+        mov     r15, -1
+
+        ; load address of current pos in file
+        mov     rax, [rbp - 8]
+        lea     r13, [rax + rbx]
         
+        ; checking for symbol
+        ; cmov does not support consts lol, x86-64 moment!
+        ; rax is used as an intermediate register bc of that
+        ; this looks a bit dirty, but avoids branching :)
+        mov     rax, tkAdd
+        cmp     BYTE [r13], "+"
+        cmovz   r15, rax
+
+        mov     rax, tkSub
+        cmp     BYTE [r13], "-"
+        cmovz   r15, rax
+        
+        mov     rax, tkMul
+        cmp     BYTE [r13], "*"
+        cmovz   r15, rax
+        
+        mov     rax, tkDiv
+        cmp     BYTE [r13], "/"
+        cmovz   r15, rax
+
+        mov     rax, tkMod
+        cmp     BYTE [r13], "%"
+        cmovz   r15, rax
+        
+        mov     rax, tkDump
+        cmp     BYTE [r13], "."
+        cmovz   r15, rax
+
+
+        ; if opcode was set (so not -1), jump to symbol handling
+        ; if opcode was not set, continue checking what it is
+        cmp     r15, -1
+        jnz     .finalize_symbol
+        jmp     .no_symbol
+
+        .finalize_symbol:
+        mov     rdi, r15
+        call    print_b
+        call    print_uint
+        call    print_space
+        jmp     .end_word
+
+        .no_symbol:
+        ; checking for keyword
+        
+        cmp     r15, -1
+        jnz     .finalize_keyword
+        jmp     .no_keyword
+        .finalize_keyword:
+        
+        .no_keyword:
+        
+        ; handle number
+        xor     rax, rax ; number
+        xor     r14, r14 ; digit counter
+        xor     rdi, rdi ; ascii translation 
+        mov     r8 , 10
+        .parse_number_loop:
+            mul     r8
+            mov     dil, BYTE [r13 + r14]
+            sub     dil, 48 
+            add     rax, rdi
+            inc     r14
+            cmp     BYTE [r13 + r14], 32
+            jz      .finish_number
+            cmp     BYTE [r13 + r14], 10
+            ; TODO: check for number only whitespace sep,
+            ; error on 47<x<57
+            jz      .finish_number
+            jmp     .parse_number_loop
+        
+        .finish_number:
+            push    rax
+            mov     rdi, rax
+            call    print_a
+            call    print_uint
+            call    print_space
+            pop     rax
+            dec     r14
+            add     QWORD [rbp - 48], r14
+            add     rbx, r14
+            ; push line
+            ; push col
+            ; push to tokens
+
         ; code end
         jmp .end_word
         .white_space:
-        ; handle whitespace?
-        call print_space 
-    
+        ; TODO: maybe handle whitespace idk
         .end_word:
         
         inc     QWORD [rbp - 48]
@@ -200,35 +283,68 @@ print_newline:
     ret
 
 print_a:
+    push    rsi
+    push    rdx
+    push    rdi
+    push    rax
     lea     rsi, [char_a]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rax
+    pop     rdi
+    pop     rdx
+    pop     rsi
     ret
 
 print_b:
+    push    rsi
+    push    rdx
+    push    rdi
+    push    rax
     lea     rsi, [char_b]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rax
+    pop     rdi
+    pop     rdx
+    pop     rsi
+
     ret
 
 print_c:
+    push    rsi
+    push    rdx
+    push    rdi
+    push    rax
     lea     rsi, [char_c]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rax
+    pop     rdi
+    pop     rdx
+    pop     rsi
     ret
 
 print_space:
+    push    rsi
+    push    rdx
+    push    rdi
+    push    rax
     lea     rsi, [char_space]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rax
+    pop     rdi
+    pop     rdx
+    pop     rsi
     ret
 
 ; prints uint
