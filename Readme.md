@@ -3,8 +3,19 @@ forth implementation in x64 assembly
 
 ## 
 assembly =(compiler)=> forth =(interpreter) => common lisp =(compiler)=> ice
-### Notes
-SysV ABI
+## Notes
+### Token Format
+<bytes>
+1 = opcode (max: 256) 
+4 = line
+4 = char in line
+<...> data
+[add, sub, mul, div] = none
+[dump] = none
+[push] = 8 # number
+
+
+### SysV ABI
 
 Parameters:
 1. rdi

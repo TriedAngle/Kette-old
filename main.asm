@@ -34,24 +34,51 @@ entry $
     push    rdi ; len token mem | rbp - 32
 
     ; iterate lines
-    xor     r12, r12 ; line counter
-    xor     r13, r13 ; col counter
+    xor     rbx, rbx
+    ; TODO: for some reason using -8 causes [rbp - 44]
+    ; to be partially overriden
+    ; maybe syscalls expect 16byte alignment???
+    sub     rsp, 16 ; t8 bytes all 0 but! we use 2x 4bytes
+    mov     QWORD [rbp - 40], 0 ; line counter | rbp - 40
+    mov     QWORD [rbp - 48], 0 ; col counter  | rbp - 48
+    
+    xor     r12, r12 ; word len counter
     xor     rbx, rbx ; charactar counter
     .token_loop:
-        lea     rax, [rbp - 8] ; ptr
-        ; increase line counter & reset col counter
+        ; check if new line
+        mov     rax, [rbp - 8]
         cmp     BYTE [rax + rbx], 10
         jnz     .no_newline
-        inc     r12
-        xor     r13, r13
+        ; increase line counter & reset col counter
+        inc     QWORD [rbp - 40]
+
+        call print_b
+        mov     rdi, [rbp - 40]
+        call    print_uint
+        call    print_newline
+        mov     QWORD [rbp - 48], 0
+
         .no_newline:
-      
-        ; print the code
-        ;mov     rax, [rbp - 8]
-        ;lea     rdi, [rax + rbx]
-        ;call    print_char
         
-        inc     r13
+        ; ignore out whitespace
+        mov     rax, [rbp - 8]
+        cmp     BYTE [rax + rbx], 32 ; whitespace
+        jz      .white_space
+        cmp     BYTE [rax + rbx], 10 ; new line
+        jz      .end_word
+        ; code here     
+        
+        call print_a
+        
+        ; code end
+        jmp .end_word
+        .white_space:
+        ; handle whitespace?
+        call print_space 
+    
+        .end_word:
+        
+        inc     QWORD [rbp - 48]
         inc     rbx
         cmp     rbx, [rbp - 16]
         jnz     .token_loop
@@ -153,23 +180,23 @@ unmap_memory:
 ; output:
 ;   rdi: ptr char (unchanged)
 print_char:
-    push    rdi
     mov     rsi, rdi
     mov     rdi, STDOUT
     mov     rdx, 1
     mov     rax, SYS_WRITE
     syscall
-    pop     rdi
     ret
 
 ; modify:
-;   rdi, rsi, rdx, rax, (rcx as well XD)
+;   rsi, rdx, rax, (rcx as well XD)
 print_newline:
+    push    rdi
     lea     rsi, [newline]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rdi
     ret
 
 print_a:
@@ -179,6 +206,31 @@ print_a:
     mov     rax, SYS_WRITE
     syscall
     ret
+
+print_b:
+    lea     rsi, [char_b]
+    mov     rdx, 1
+    mov     rdi, STDOUT
+    mov     rax, SYS_WRITE
+    syscall
+    ret
+
+print_c:
+    lea     rsi, [char_c]
+    mov     rdx, 1
+    mov     rdi, STDOUT
+    mov     rax, SYS_WRITE
+    syscall
+    ret
+
+print_space:
+    lea     rsi, [char_space]
+    mov     rdx, 1
+    mov     rdi, STDOUT
+    mov     rax, SYS_WRITE
+    syscall
+    ret
+
 ; prints uint
 ; input:
 ;   rdi: value
@@ -269,7 +321,11 @@ buf         rb  80
 segment readable
 ; PRINTING
 newline     db 10
+char_space  db 32
 char_a      db 65
+char_b      db 66
+char_c      db 67
+
 ; ERRORS
 err0        db "File not found"
 err0len     =   14
