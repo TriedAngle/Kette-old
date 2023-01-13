@@ -174,18 +174,83 @@ entry $
         cmp     rbx, [rbp - 16]
         jnz     .token_loop
    
-   
+    ;   [rbp -  8] ptr | origin file
+    ;   [rbp - 16] len | origin file 
+
+    ;   [rbp - 24] ptr | token mem
+    ;   [rbp - 32] len | token mem
+
+    ;   [rbp - 40] junk
+    ;   [rbp - 48] junk
+
+    ;   r12 | token mem effective len
+
+    ; allocate memory
+    mov     rdi, 256
+    call    map_memory
+    push    rax ; [rbp - 56] = ptr | output file
+    push    rdi ; [rbp - 64] = len | output file
+ 
+    xor     rbx, rbx ; tokenspace offset
+    xor     r15, r15 ; output file offset 
+    
+    mov     rax, [rbp - 24]
+    lea     r13, [rax]  ; token file ptr
+    mov     rax, [rbp - 56]
+    lea     r14, [rax]  ; output file ptr
+
+    .loop_bytecode_to_asm:
+        cmp     BYTE [r13 + rbx], tkPush
+        jz      .output_push
+        
+        ; wtf ?
+        jmp     .output_end
+
+
+        .output_push:
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, ASM_PUSH
+        mov     rdx, ASM_PUSH_LEN
+        call mem_move
+        add     r15, ASM_PUSH_LEN
+        
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        add     rbx, 9 ; op (1) + len & col (8)
+        mov     rdi, [r13 + rbx]
+        call    uitds ; rdx = len
+        
+        lea     rdi, [r14 + r15]
+        mov     rsi, rax
+        call mem_move
+        add     rsp, 20 ; reset stack
+        add     r15, rdx
+        
+        add     rbx, 8 ; number (8)
+
+        jmp     .output_end
+
+        .output_end:
+        
+        jmp _test_exit
+
+        cmp rbx, r12
+        jz .loop_bytecode_to_asm
+    
+    _test_exit:
+        
 
     ; write byteformat to file for hexdump checking (works :) )
-    mov     rdi, file1
+    mov     rdi, file2
     mov     rsi, O_WRONLY or O_CREAT
     xor     rdx, rdx
     mov     rax, SYS_OPEN
     syscall
 
     mov     rdi, rax
-    mov     rsi, [rbp - 24]
-    mov     rdx, [rbp - 32]
+    mov     rsi, [rbp - 56]
+    mov     rdx, [rbp - 64]
     mov     rax, SYS_WRITE
     syscall
 
@@ -278,6 +343,22 @@ unmap_memory:
     ret
 
 
+; move memory
+; innput:
+;   rdi: ptr destination
+;   rsi: ptr source
+;   rdx: len to move 
+mem_move:
+    xor     rcx, rcx
+    .loop_mem_move:
+        mov     al, BYTE [rsi + rcx] ; src byte
+        mov     BYTE [rdi + rcx], al ; dst byte
+        inc     rcx
+        cmp     rcx, rdx
+        jnz .loop_mem_move
+    ret
+
+
 ; print single char
 ; input:
 ;   rdi: ptr char
@@ -310,11 +391,13 @@ print_a:
     push    rdx
     push    rdi
     push    rax
+    push    rcx
     lea     rsi, [char_a]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rcx
     pop     rax
     pop     rdi
     pop     rdx
@@ -326,11 +409,13 @@ print_b:
     push    rdx
     push    rdi
     push    rax
+    push    rcx
     lea     rsi, [char_b]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rcx
     pop     rax
     pop     rdi
     pop     rdx
@@ -458,6 +543,12 @@ buf         rb  80
 
 
 segment readable
+; ASSEMBLY OUTPUT
+ASM_PUSH        db "push "
+ASM_PUSH_LEN    = 5
+ASM_ADD         db "pop rax", 10, "pop rbx", "add rax, rbx", 10, "push rax", 10
+
+
 ; PRINTING
 newline     db 10
 char_space  db 32
@@ -474,3 +565,6 @@ file0       db  "arith.ff", 0
 file0len    =   8
 file1       db  "hexdump.XD", 0
 file1len    =   10
+
+file2       db   "arith.gen.asm", 0
+file2len    =   13

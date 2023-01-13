@@ -32,8 +32,8 @@ Return:
 
 Preserve:
 1. rbx
-2. rsp
-3. rbp
+2. rsp ; unusable 
+3. rbp ; unusable
 4. r12
 5. r13
 6. r14
