@@ -37,11 +37,8 @@ ret
 
 entry $
 push 3
-push 5
-push 5
-pop rbx
 pop rax
-add rax, rbx
+push rax
 push rax
 pop rbx
 pop rax

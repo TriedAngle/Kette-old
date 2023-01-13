@@ -46,6 +46,7 @@ entry $
     xor     rbx, rbx ; charactar counter
     .token_loop:
         ; check if new line
+
         mov     rax, [rbp - 8]
         cmp     BYTE [rax + rbx], 10
         jnz     .no_newline
@@ -118,10 +119,33 @@ entry $
         .no_symbol:
         ; checking for keyword
         
+       
+        mov     rdi, r13
+        lea     rsi, [KEY_DUP]
+        mov     rdx, KEY_DUP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkDup
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
         cmp     r15, -1
-        jnz     .finalize_keyword
+        jnz     .finalize_keyword_simple
         jmp     .no_keyword
-        .finalize_keyword:
+
+        
+        .finalize_keyword_simple:
+        mov     rdi, [rbp - 24]
+        mov     BYTE [rdi + r12], r15b
+        mov     eax, DWORD [rbp - 40]
+        mov     r8d, DWORD [rbp - 48]
+        mov     DWORD [rdi + r12 + 1], eax
+        mov     DWORD [rdi + r12 + 5], r8d
+        add     r12, 9
+        add     rbx, 2 ; TODO: this is sus and doesn't work for keywords > 3
+        jmp     .end_word   
+
+
         
         .no_keyword:
         
@@ -227,6 +251,8 @@ entry $
         cmp     BYTE [r13 + rbx], tkDump
         jz      .output_dump
 
+        cmp     BYTE [r13 + rbx], tkDup
+        jz      .output_dup
         ; TODO: handle unknown bytecode
         ; could also detect wrong offsetting
         jmp     .output_end
@@ -307,7 +333,15 @@ entry $
             add     r15, ASM_DUMP_LEN
             add     rbx, 9
             call    .output_end
-
+        
+        .output_dup:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_DUP
+            mov     rdx, ASM_DUP_LEN
+            call    mem_move
+            add     r15, ASM_DUP_LEN
+            add     rbx, 9
+            call    .output_end
 
         .output_end:
 
@@ -322,7 +356,7 @@ entry $
     add     r15, ASM_ENDING_LEN
 
     mov     rdi, file2
-    mov     rsi, O_WRONLY or O_CREAT
+    mov     rsi, O_WRONLY or O_CREAT or O_TRUNC
     xor     rdx, rdx
     mov     rax, SYS_OPEN
     syscall
@@ -423,7 +457,7 @@ unmap_memory:
 
 
 ; move memory
-; innput:
+; input:
 ;   rdi: ptr destination
 ;   rsi: ptr source
 ;   rdx: len to move 
@@ -437,6 +471,30 @@ mem_move:
         jnz .loop_mem_move
     ret
 
+; compare memory
+; input:
+;   rdi: ptr 1
+;   rsi: ptr 2
+;   rdx: len
+; output: 
+;   rax: 1 equal, 0 unequal
+mem_cmp:
+    xor     rcx, rcx
+    .loop_mem_cmp:
+        mov     r8l, BYTE [rdi + rcx]
+        cmp     r8l, BYTE [rsi + rcx]
+        jnz     .mem_cmp_exit_unequal
+        inc     rcx
+        cmp     rcx, rdx
+        jnz     .loop_mem_cmp
+        jmp     .mem_cmp_exit
+
+    .mem_cmp_exit_unequal:
+        mov     rax, 0
+        ret
+    .mem_cmp_exit:
+        mov     rax, 1
+        ret
 
 ; print single char
 ; input:
@@ -446,11 +504,13 @@ mem_move:
 ; output:
 ;   rdi: ptr char (unchanged)
 print_char:
-    mov     rsi, rdi
+    push    rdi
+    lea     rsi, [rsp]
     mov     rdi, STDOUT
     mov     rdx, 1
     mov     rax, SYS_WRITE
     syscall
+    pop     rdi
     ret
 
 ; modify:
@@ -622,6 +682,10 @@ buf         rb  80
 
 
 segment readable
+; LANGUAGE KEYWORDS
+KEY_DUP         db  "dup"
+KEY_DUP_LEN     = $ - KEY_DUP
+
 ; ASSEMBLY OUTPUT
 ASM_PUSH        db  "push "
 ASM_PUSH_LEN    =   $ - ASM_PUSH
@@ -643,6 +707,9 @@ ASM_MOD_LEN     =   $ - ASM_MOD
 
 ASM_DUMP        db  "pop rdi", 10, "call dump_uint", 10
 ASM_DUMP_LEN    =   $ - ASM_DUMP
+
+ASM_DUP         db  "pop rax", 10, "push rax", 10, "push rax", 10
+ASM_DUP_LEN     =   $ - ASM_DUP
 
 ASM_HEADER      db "format ELF64 executable 3", 10
     db 10
@@ -691,6 +758,7 @@ ASM_ENDING db 10, "mov rdi, 0", 10
     db "syscall", 10
 
 ASM_ENDING_LEN = $ - ASM_ENDING
+
 ; PRINTING
 newline     db 10
 char_space  db 32

@@ -12,6 +12,7 @@ assembly =(compiler)=> forth =(interpreter) => common lisp =(compiler)=> ice
 <...> data
 [add, sub, mul, div] = none
 [dump] = none
+[dup, 2dup, swap]
 [push] = 8 # number | address (TODO later)
 
 
