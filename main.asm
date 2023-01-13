@@ -186,7 +186,7 @@ entry $
     ;   r12 | token mem effective len
 
     ; allocate memory
-    mov     rdi, 256
+    mov     rdi, 2048
     call    map_memory
     push    rax ; [rbp - 56] = ptr | output file
     push    rdi ; [rbp - 64] = len | output file
@@ -199,49 +199,128 @@ entry $
     mov     rax, [rbp - 56]
     lea     r14, [rax]  ; output file ptr
 
+    lea     rdi, [r14 + r15]
+    mov     rsi, ASM_HEADER
+    mov     rdx, ASM_HEADER_LEN
+    call    mem_move
+    add     r15, ASM_HEADER_LEN
+
     .loop_bytecode_to_asm:
         cmp     BYTE [r13 + rbx], tkPush
         jz      .output_push
         
-        ; wtf ?
-        jmp     .output_end
+        cmp     BYTE [r13 + rbx], tkAdd
+        jz      .output_add
 
+        cmp     BYTE [r13 + rbx], tkSub
+        jz      .output_sub
+
+        cmp     BYTE [r13 + rbx], tkMul
+        jz      .output_mul
+
+        cmp     BYTE [r13 + rbx], tkDiv
+        jz      .output_div
+
+        cmp     BYTE [r13 + rbx], tkMod
+        jz      .output_mod
+
+        cmp     BYTE [r13 + rbx], tkDump
+        jz      .output_dump
+
+        ; TODO: handle unknown bytecode
+        ; could also detect wrong offsetting
+        jmp     .output_end
 
         .output_push:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PUSH
+            mov     rdx, ASM_PUSH_LEN
+            call    mem_move
+            add     r15, ASM_PUSH_LEN
+        
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            add     rbx, 9 ; op (1) + len & col (8)
+            mov     rdi, [r13 + rbx]
+            call    uitds ; rdx = len
+        
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20 ; reset stack
+            add     r15, rdx
+            add     rbx, 8 ; number (8)
+            
+            mov     BYTE [r14 + r15], 10
+            add     r15, 1
+            jmp     .output_end
 
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_PUSH
-        mov     rdx, ASM_PUSH_LEN
-        call mem_move
-        add     r15, ASM_PUSH_LEN
-        
-        lea     rsi, [rsp]
-        sub     rsp, 20
-        add     rbx, 9 ; op (1) + len & col (8)
-        mov     rdi, [r13 + rbx]
-        call    uitds ; rdx = len
-        
-        lea     rdi, [r14 + r15]
-        mov     rsi, rax
-        call mem_move
-        add     rsp, 20 ; reset stack
-        add     r15, rdx
-        
-        add     rbx, 8 ; number (8)
+        .output_add:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_ADD
+            mov     rdx, ASM_ADD_LEN
+            call    mem_move
+            add     r15, ASM_ADD_LEN
+            add     rbx, 9
+            call    .output_end
+        .output_sub:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SUB
+            mov     rdx, ASM_SUB_LEN
+            call    mem_move
+            add     r15, ASM_SUB_LEN
+            add     rbx, 9
+            call    .output_end
 
-        jmp     .output_end
+        .output_mul:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_MUL
+            mov     rdx, ASM_MUL_LEN
+            call    mem_move
+            add     r15, ASM_MUL_LEN
+            add     rbx, 9
+            call    .output_end
+
+        .output_div:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_DIV
+            mov     rdx, ASM_DIV_LEN
+            call    mem_move
+            add     r15, ASM_DIV_LEN
+            add     rbx, 9
+            call    .output_end
+
+        .output_mod:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_MOD
+            mov     rdx, ASM_MOD_LEN
+            call    mem_move
+            add     r15, ASM_MOD_LEN
+            add     rbx, 9
+            call    .output_end
+
+        .output_dump:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_DUMP
+            mov     rdx, ASM_DUMP_LEN
+            call    mem_move
+            add     r15, ASM_DUMP_LEN
+            add     rbx, 9
+            call    .output_end
+
 
         .output_end:
-        
-        jmp _test_exit
 
         cmp rbx, r12
-        jz .loop_bytecode_to_asm
+        jnz .loop_bytecode_to_asm
     
-    _test_exit:
-        
+  
+    lea     rdi, [r14 + r15]
+    mov     rsi, ASM_ENDING
+    mov     rdx, ASM_ENDING_LEN
+    call    mem_move
+    add     r15, ASM_ENDING_LEN
 
-    ; write byteformat to file for hexdump checking (works :) )
     mov     rdi, file2
     mov     rsi, O_WRONLY or O_CREAT
     xor     rdx, rdx
@@ -250,7 +329,7 @@ entry $
 
     mov     rdi, rax
     mov     rsi, [rbp - 56]
-    mov     rdx, [rbp - 64]
+    mov     rdx, r15
     mov     rax, SYS_WRITE
     syscall
 
@@ -544,11 +623,74 @@ buf         rb  80
 
 segment readable
 ; ASSEMBLY OUTPUT
-ASM_PUSH        db "push "
-ASM_PUSH_LEN    = 5
-ASM_ADD         db "pop rax", 10, "pop rbx", "add rax, rbx", 10, "push rax", 10
+ASM_PUSH        db  "push "
+ASM_PUSH_LEN    =   $ - ASM_PUSH
+
+ASM_ADD         db  "pop rbx", 10, "pop rax", 10, "add rax, rbx", 10, "push rax", 10
+ASM_ADD_LEN     =   $ - ASM_ADD
+
+ASM_SUB         db  "pop rbx", 10, "pop rax", 10, "sub rax, rbx", 10, "push rax", 10
+ASM_SUB_LEN     =   $ - ASM_SUB
+
+ASM_MUL         db  "pop rbx", 10, "pop rax", 10, "mul rbx", 10, "push rax", 10
+ASM_MUL_LEN     =   $ - ASM_MUL
+
+ASM_DIV         db  "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rax", 10
+ASM_DIV_LEN     =   $ - ASM_DIV
+
+ASM_MOD         db  "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rdx", 10
+ASM_MOD_LEN     =   $ - ASM_MOD
+
+ASM_DUMP        db  "pop rdi", 10, "call dump_uint", 10
+ASM_DUMP_LEN    =   $ - ASM_DUMP
+
+ASM_HEADER      db "format ELF64 executable 3", 10
+    db 10
+    db "segment readable executable", 10
+    db 10
+    db "dump_uint:", 10
+    db "mov     r8, -3689348814741910323", 10
+    db "sub     rsp, 40", 10
+    db "mov     BYTE [rsp+19], 10", 10
+    db "lea     rcx, [rsp+18]", 10
+    db ".L2:", 10
+    db "mov     rax, rdi", 10
+    db "mul     r8", 10
+    db "mov     rax, rdi", 10
+    db "shr     rdx, 3", 10
+    db "lea     rsi, [rdx+rdx*4]", 10
+    db "add     rsi, rsi", 10
+    db "sub     rax, rsi", 10
+    db "add     eax, 48", 10
+    db "mov     BYTE [rcx], al", 10
+    db "mov     rax, rdi", 10
+    db "mov     rdi, rdx", 10
+    db "mov     rdx, rcx", 10
+    db "sub     rcx, 1", 10
+    db "cmp     rax, 9", 10
+    db "ja      .L2", 10
+    db "lea     rax, [rsp+20]", 10
+    db "mov     edi, 1", 10
+    db "mov     rcx, rax", 10
+    db "sub     rcx, rdx", 10
+    db "sub     rdx, rax", 10
+    db "lea     rsi, [rsp+20+rdx]", 10
+    db "mov     rdx, rcx", 10
+    db "mov     rax, 1", 10
+    db "syscall", 10
+    db "add     rsp, 40", 10
+    db "ret", 10
+    db 10
+    db "entry $", 10
+
+ASM_HEADER_LEN = $ - ASM_HEADER
 
 
+ASM_ENDING db 10, "mov rdi, 0", 10
+    db "mov rax, 60", 10
+    db "syscall", 10
+
+ASM_ENDING_LEN = $ - ASM_ENDING
 ; PRINTING
 newline     db 10
 char_space  db 32
