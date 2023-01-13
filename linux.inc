@@ -19,6 +19,7 @@ STDERR      = 2
 O_RDONLY    = 0
 O_WRONLY    = 1
 O_RDWR      = 2
+O_CREAT     = 64
 
 PROT_NONE   = 0
 PROT_READ   = 1

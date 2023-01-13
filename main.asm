@@ -9,7 +9,7 @@ tkMul       = 2
 tkDiv       = 3
 tkMod       = 4
 tkDump      = 5
-tkpush      = 6
+tkPush      = 6
 tkDup       = 7
 tkExit      = 255
 
@@ -42,7 +42,7 @@ entry $
     mov     QWORD [rbp - 40], 0 ; line counter | rbp - 40
     mov     QWORD [rbp - 48], 0 ; col counter  | rbp - 48
     
-    xor     r12, r12 ; word len counter
+    xor     r12, r12 ; tokenspace counter
     xor     rbx, rbx ; charactar counter
     .token_loop:
         ; check if new line
@@ -106,10 +106,13 @@ entry $
         jmp     .no_symbol
 
         .finalize_symbol:
-        mov     rdi, r15
-        call    print_b
-        call    print_uint
-        call    print_space
+        mov     rdi, [rbp - 24] ; ptr of token memory
+        mov     BYTE [rdi + r12], r15b
+        mov     eax, DWORD [rbp - 40]
+        mov     r8d, DWORD [rbp - 48]
+        mov     DWORD [rdi + r12 + 1], eax
+        mov     DWORD [rdi + r12 + 5], r8d
+        add     r12, 9
         jmp     .end_word
 
         .no_symbol:
@@ -142,12 +145,17 @@ entry $
             jmp     .parse_number_loop
         
         .finish_number:
-            push    rax
-            mov     rdi, rax
-            call    print_a
-            call    print_uint
-            call    print_space
-            pop     rax
+            mov     rdi, [rbp - 24] ; ptr of token memory
+            mov     BYTE [rdi + r12], tkPush
+            mov     r8d, DWORD [rbp - 40]
+            mov     r9d, DWORD [rbp - 48]
+            mov     DWORD [rdi + r12 + 1], r8d
+            mov     DWORD [rdi + r12 + 5], r9d
+            mov     QWORD [rdi + r12 + 9], rax
+            
+            add     r12, 17 
+            ; dec and add because end of loop does inc
+            ; and to skip already parsed int
             dec     r14
             add     QWORD [rbp - 48], r14
             add     rbx, r14
@@ -165,7 +173,22 @@ entry $
         inc     rbx
         cmp     rbx, [rbp - 16]
         jnz     .token_loop
-    
+   
+   
+
+    ; write byteformat to file for hexdump checking (works :) )
+    mov     rdi, file1
+    mov     rsi, O_WRONLY or O_CREAT
+    xor     rdx, rdx
+    mov     rax, SYS_OPEN
+    syscall
+
+    mov     rdi, rax
+    mov     rsi, [rbp - 24]
+    mov     rdx, [rbp - 32]
+    mov     rax, SYS_WRITE
+    syscall
+
     ; dealloc file
     mov     rdi, [rbp - 8]
     mov     rsi, [rbp - 16]
@@ -449,3 +472,5 @@ err0len     =   14
 ; HARDCODED
 file0       db  "arith.ff", 0
 file0len    =   8
+file1       db  "hexdump.XD", 0
+file1len    =   10
