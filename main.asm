@@ -21,56 +21,43 @@ entry $
 
     mov     rdi, file0
     call    open_file
+    
+    lea     r12, [rsp] ; "base pointer"
+    push    rax ; ptr file mem  | rbp - 8
+    push    rdx ; len file mem  | rbp - 16
+    
+    xor     rax, rax
+    push    rax ; line counter  | rbp - 24
+    push    rax ; col counter   | rbp - 32
+    push    rax ; offset        | rbp - 40
 
-    push    rax ; ptr file mem | rbp - 8
-    push    rdx ; len file mem | rbp - 16
-     
+
     ; allocate memory for token loop
     ; start out with 128 bytes
     mov     rdi, 128
     call    map_memory
     
-    push    rax ; ptr token mem | rbp - 24
-    push    rdi ; len token mem | rbp - 32
+    push    rax ; ptr token mem | rbp - 48
+    push    rdi ; len token mem | rbp - 56
 
-    ; iterate lines
-    xor     rbx, rbx
-    ; TODO: for some reason using -8 causes [rbp - 44]
-    ; to be partially overriden
-    ; maybe syscalls expect 16byte alignment???
-    sub     rsp, 16 ; t8 bytes all 0 but! we use 2x 4bytes
-    mov     QWORD [rbp - 40], 0 ; line counter | rbp - 40
-    mov     QWORD [rbp - 48], 0 ; col counter  | rbp - 48
-    
-    xor     r12, r12 ; tokenspace counter
-    xor     rbx, rbx ; charactar counter
+    xor     rbx, rbx ; tokenspace offset
     .token_loop:
-        ; check if new line
+        mov     rdi, r12
+        call    next_string
+        ; rax = ptr sub string | 0 = reached end
+        ; rdx = len sub string
+        cmp     rax, 0
+        jz      .exit_token_loop;
 
-        mov     rax, [rbp - 8]
-        cmp     BYTE [rax + rbx], 10
-        jnz     .no_newline
-        ; increase line counter & reset col counter
-        inc     QWORD [rbp - 40]
-        mov     QWORD [rbp - 48], 0
-
-        .no_newline:
+        mov     rdi, rax
+        mov     rsi, rdx
+        call    print_string
+        call    print_newline
+       
+        mov     r13, rax ; ptr sub string
+        mov     r14, rdx ; len sub string
         
-        ; ignore out whitespace
-        mov     rax, [rbp - 8]
-        cmp     BYTE [rax + rbx], 32 ; whitespace
-        jz      .white_space
-        cmp     BYTE [rax + rbx], 10 ; new line
-        jz      .white_space
-        ; code here     
-        
-        ; reset opcode register
         mov     r15, -1
-
-        ; load address of current pos in file
-        mov     rax, [rbp - 8]
-        lea     r13, [rax + rbx]
-        
         ; checking for symbol
         ; cmov does not support consts lol, x86-64 moment!
         ; rax is used as an intermediate register bc of that
@@ -99,7 +86,6 @@ entry $
         cmp     BYTE [r13], "."
         cmovz   r15, rax
 
-
         ; if opcode was set (so not -1), jump to symbol handling
         ; if opcode was not set, continue checking what it is
         cmp     r15, -1
@@ -107,13 +93,13 @@ entry $
         jmp     .no_symbol
 
         .finalize_symbol:
-        mov     rdi, [rbp - 24] ; ptr of token memory
-        mov     BYTE [rdi + r12], r15b
-        mov     eax, DWORD [rbp - 40]
-        mov     r8d, DWORD [rbp - 48]
-        mov     DWORD [rdi + r12 + 1], eax
-        mov     DWORD [rdi + r12 + 5], r8d
-        add     r12, 9
+        mov     rdi, [rbp - 48] ; ptr of token memory
+        mov     BYTE [rdi + rbx], r15b
+        mov     eax, DWORD [rbp - 24]
+        mov     r8d, DWORD [rbp - 32]
+        mov     DWORD [rdi + rbx + 1], eax
+        mov     DWORD [rdi + rbx + 5], r8d
+        add     rbx, 9
         jmp     .end_word
 
         .no_symbol:
@@ -125,6 +111,7 @@ entry $
         mov     rdx, KEY_DUP_LEN
         call    mem_cmp
         cmp     rax, 1
+
         mov     rax, tkDup
         cmovz   r15, rax
         jz      .finalize_keyword_simple
@@ -135,69 +122,58 @@ entry $
 
         
         .finalize_keyword_simple:
-        mov     rdi, [rbp - 24]
-        mov     BYTE [rdi + r12], r15b
-        mov     eax, DWORD [rbp - 40]
-        mov     r8d, DWORD [rbp - 48]
-        mov     DWORD [rdi + r12 + 1], eax
-        mov     DWORD [rdi + r12 + 5], r8d
-        add     r12, 9
-        add     rbx, 2 ; TODO: this is sus and doesn't work for keywords > 3
+        mov     rdi, [rbp - 48]
+        mov     BYTE [rdi + rbx], r15b
+        mov     eax, DWORD [rbp - 24]
+        mov     r8d, DWORD [rbp - 32]
+        mov     DWORD [rdi + rbx + 1], eax
+        mov     DWORD [rdi + rbx + 5], r8d
+        add     rbx, 9
         jmp     .end_word   
-
-
-        
+ 
         .no_keyword:
         
         ; handle number
+
         xor     rax, rax ; number
-        xor     r14, r14 ; digit counter
+        xor     rcx, rcx ; digit counter
         xor     rdi, rdi ; ascii translation 
         mov     r8 , 10
         .parse_number_loop:
             mul     r8
-            mov     dil, BYTE [r13 + r14]
+            mov     dil, BYTE [r13 + rcx]
             sub     dil, 48 
             add     rax, rdi
-            inc     r14
-            cmp     BYTE [r13 + r14], 32
-            jz      .finish_number
-            cmp     BYTE [r13 + r14], 10
+            inc     rcx
+            cmp     rcx, r14
             ; TODO: check for number only whitespace sep,
             ; error on 47<x<57
             jz      .finish_number
             jmp     .parse_number_loop
         
         .finish_number:
-            mov     rdi, [rbp - 24] ; ptr of token memory
-            mov     BYTE [rdi + r12], tkPush
-            mov     r8d, DWORD [rbp - 40]
-            mov     r9d, DWORD [rbp - 48]
-            mov     DWORD [rdi + r12 + 1], r8d
-            mov     DWORD [rdi + r12 + 5], r9d
-            mov     QWORD [rdi + r12 + 9], rax
-            
-            add     r12, 17 
-            ; dec and add because end of loop does inc
-            ; and to skip already parsed int
-            dec     r14
-            add     QWORD [rbp - 48], r14
-            add     rbx, r14
-            ; push line
-            ; push col
-            ; push to tokens
+            mov     rdi, [rbp - 48] ; ptr of token memory
+            mov     BYTE [rdi + rbx], tkPush
+            mov     r8d, DWORD [rbp - 24]
+            mov     r9d, DWORD [rbp - 32]
+            mov     DWORD [rdi + rbx + 1], r8d
+            mov     DWORD [rdi + rbx + 5], r9d
+            mov     QWORD [rdi + rbx + 9], rax
+            add     rbx, 17 
 
-        ; code end
-        jmp .end_word
-        .white_space:
-        ; TODO: maybe handle whitespace idk
         .end_word:
-        
-        inc     QWORD [rbp - 48]
-        inc     rbx
-        cmp     rbx, [rbp - 16]
-        jnz     .token_loop
-   
+ 
+        jmp .token_loop
+
+    .exit_token_loop:
+    
+    call    print_b
+    mov     rdi, 0
+    mov     rax, SYS_EXIT
+    syscall
+
+
+
     ;   [rbp -  8] ptr | origin file
     ;   [rbp - 16] len | origin file 
 
@@ -385,6 +361,118 @@ entry $
     syscall
 
 
+; input:
+;   rdi: "base pointer"
+;       ptr string     | - 8
+;       len string     | - 16
+;       line counter   | - 24
+;       col counter    | - 32
+;       sub index      | - 40
+; output:
+;   rax: ptr sub-string | ptr == null => over
+;   rdx: len sub-string
+next_string:
+    push rbp
+    mov rbp, rsp
+    push r15
+    push r14
+    push r13
+    push r12
+    push rbx
+
+    mov r12, rdi ; base pointer
+    
+    mov rax, [r12 - 8]   ; string ptr
+    mov rbx, [r12 - 40]  ; offset
+    lea r13, [rax + rbx] ; current iter start
+    
+    mov r14, rbx ; total offset
+    
+    cmp r14, [r12 - 16]
+    jz .end_of_string
+
+    xor rbx, rbx ; skipped whitespaces
+    .loop_trim_left:
+        cmp BYTE [r13 + rbx], 10
+        jz .handle_whitespace
+        cmp BYTE [r13 + rbx], 32
+        jz .handle_newline
+        
+        cmp r14, [r12 - 16]
+        jz .end_of_string
+
+        jmp .found_word
+        
+        .handle_newline:
+            inc QWORD [r12 - 24]
+            mov QWORD [r12 - 32], 0 ; reset column counter
+        .handle_whitespace:
+            inc rbx
+            inc r14
+            jmp .loop_trim_left
+ 
+    .found_word:
+    lea r13, [r13 + rbx] ; first non whitespace
+    xor rcx, rcx ; word len
+  
+    xor r15, r15 ; is in "
+
+    .loop_until_whitespace:
+        cmp r14, [r12 - 16] 
+        jz .found_whitespace
+
+        inc rcx
+        inc r14
+
+        cmp BYTE [r13 + rcx - 1], 34
+        jz .found_quote
+        jmp .move_on 
+
+        .found_quote:
+            cmp r15, 0
+            mov rax, 1
+            cmovz r15, rax
+            mov rax, 0
+            cmovnz r15, rax
+        
+        .move_on:
+        cmp r15, 1
+        jz .loop_until_whitespace
+
+        cmp BYTE [r13 + rcx], 10
+        jz .found_whitespace
+        cmp BYTE [r13 + rcx], 32
+        jz .found_whitespace
+        jmp .loop_until_whitespace
+
+    .found_whitespace:
+    add [r12 - 40], rbx ; offset whitespaces
+    add [r12 - 40], rcx ; offset word
+    
+    mov rax, r13 ; ptr of word
+    mov rdx, rcx ; len of word
+
+    jmp .return_word
+    
+    .end_of_string:
+        mov rax, 0
+        mov rdx, 0
+
+    .return_word:
+
+    pop rbx
+    pop r12
+    pop r13
+    pop r14
+    pop r15
+    mov rsp, rbp
+    pop rbp
+    ret
+
+
+
+
+
 ; input
 ;   rdi: path   = ptr string (null term)
 ; modify
@@ -496,6 +584,30 @@ mem_cmp:
         mov     rax, 1
         ret
 
+
+; input:
+;   rdi: ptr string
+;   rsi: len string
+print_string:
+    push    rdi
+    push    rax
+    push    rdx
+    push    rcx
+    push    rsi
+
+    mov     rdx, rsi
+    mov     rsi, rdi
+    mov     rdi, STDOUT
+    mov     rax, SYS_WRITE
+    syscall
+    
+    pop     rsi
+    pop     rcx
+    pop     rdx
+    pop     rax
+    pop     rdi
+    ret
+
 ; print single char
 ; input:
 ;   rdi: ptr char
@@ -516,14 +628,23 @@ print_char:
 ; modify:
 ;   rsi, rdx, rax, (rcx as well XD)
 print_newline:
+    push    rsi
+    push    rdx
     push    rdi
+    push    rax
+    push    rcx
     lea     rsi, [newline]
     mov     rdx, 1
-    mov     rdi, STDOUT
-    mov     rax, SYS_WRITE
+    mov     rdi, 1
+    mov     rax, 1
     syscall
+    pop     rcx
+    pop     rax
     pop     rdi
+    pop     rdx
+    pop     rsi
     ret
+
 
 print_a:
     push    rsi
