@@ -8,9 +8,21 @@ tkSub       = 1
 tkMul       = 2
 tkDiv       = 3
 tkMod       = 4
-tkDump      = 5
+tkModiv     = 5
+
 tkPush      = 6
-tkDup       = 7
+tkDump      = 7
+tkDup       = 8
+tkSwap      = 9
+tkRot       = 10
+tkOver      = 11
+tkDrop      = 12
+
+tk2Dup      = 13
+tk2Swap     = 14
+tk2Over     = 15
+tk2Drop     = 16
+
 tkExit      = 255
 
 segment readable executable
@@ -314,7 +326,9 @@ entry $
             add     r15, ASM_DUP_LEN
             add     rbx, 9
             call    .output_end
-
+        
+        .output_swap:
+            lea     rdi
         .output_end:
 
         cmp rbx, r12
@@ -823,11 +837,34 @@ ASM_DIV_LEN     =   $ - ASM_DIV
 ASM_MOD         db  "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rdx", 10
 ASM_MOD_LEN     =   $ - ASM_MOD
 
+ASM_MODIV       db  "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rdx", 10, "push rax", 10
+ASM_MODIV_LEN   =   $ - ASM_MODIV
+
 ASM_DUMP        db  "pop rdi", 10, "call dump_uint", 10
 ASM_DUMP_LEN    =   $ - ASM_DUMP
 
 ASM_DUP         db  "pop rax", 10, "push rax", 10, "push rax", 10
 ASM_DUP_LEN     =   $ - ASM_DUP
+
+ASM_SWAP        db  "pop rax", 10, "pop rbx", 10, "push rax", 10, "push rbx", 10
+ASM_SWAP_LEN    =   $ - ASM_SWAP
+
+ASM_ROT         db  "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "push rbx", 10, "push rax", 10, "push rcx", 10
+ASM_ROT_LEN     =   $ - ASM_ROT
+
+ASM_OVER        db  "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10
+ASM_OVER_LEN    =   $ - ASM_OVER_LEN
+
+ASM_DROP        db  "pop r15", 10, "xor r15, r15", 10
+ASM_DROP        =   $ - ASM_DROP
+
+ASM_2DUP        =   "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10, "push rax", 10
+ASM_2DUP_LEN    =   $ - ASM_2DUP
+
+ASM_2SWAP       =   "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "pop rdx", 10, "push rbx", 10, "push rax", 10, "push rdx", 10, "push rcx", 10
+
+ASM_2SWAP_LEN   =   $ - ASM_2SWAP
+
 
 ASM_HEADER      db "format ELF64 executable 3", 10
     db 10
