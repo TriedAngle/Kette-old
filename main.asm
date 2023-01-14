@@ -167,36 +167,32 @@ entry $
 
     .exit_token_loop:
     
-    call    print_b
-    mov     rdi, 0
-    mov     rax, SYS_EXIT
-    syscall
+    ;   [rbp -  8] ptr | origin file (required for close)
+    ;   [rbp - 16] len | origin file (junk)
+
+    ;   [rbp - 24] line counter (junk)
+    ;   [rbp - 32] col counter  (junk)
+    ;   [rbp - 40] offset       (junk)
+
+    ;   [rbp - 48] ptr | token mem
+    ;   [rbp - 56] len | token mem
 
 
-
-    ;   [rbp -  8] ptr | origin file
-    ;   [rbp - 16] len | origin file 
-
-    ;   [rbp - 24] ptr | token mem
-    ;   [rbp - 32] len | token mem
-
-    ;   [rbp - 40] junk
-    ;   [rbp - 48] junk
-
-    ;   r12 | token mem effective len
-
+    ;   rbx -> r12 | token mem effective len
+    mov     r12, rbx
+    ;   
     ; allocate memory
     mov     rdi, 2048
     call    map_memory
-    push    rax ; [rbp - 56] = ptr | output file
-    push    rdi ; [rbp - 64] = len | output file
+    push    rax ; [rbp - 64] = ptr | output file
+    push    rdi ; [rbp - 72] = len | output file
  
     xor     rbx, rbx ; tokenspace offset
     xor     r15, r15 ; output file offset 
     
-    mov     rax, [rbp - 24]
+    mov     rax, [rbp - 48]
     lea     r13, [rax]  ; token file ptr
-    mov     rax, [rbp - 56]
+    mov     rax, [rbp - 64]
     lea     r14, [rax]  ; output file ptr
 
     lea     rdi, [r14 + r15]
@@ -337,8 +333,9 @@ entry $
     mov     rax, SYS_OPEN
     syscall
 
+    ; write assembly
     mov     rdi, rax
-    mov     rsi, [rbp - 56]
+    mov     rsi, [rbp - 64]
     mov     rdx, r15
     mov     rax, SYS_WRITE
     syscall
@@ -349,8 +346,8 @@ entry $
     call unmap_memory
 
     ; dealloc tokenspace
-    mov     rdi, [rbp - 24]
-    mov     rsi, [rbp - 32]
+    mov     rdi, [rbp - 48]
+    mov     rsi, [rbp - 56]
     call unmap_memory
 
     mov     rsp, rbp
