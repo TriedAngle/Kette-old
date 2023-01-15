@@ -46,8 +46,12 @@ add rax, rbx
 push rax
 pop rdi
 call dump_uint
-push 55
 push 3
+push 55
+pop rax
+pop rbx
+push rax
+push rbx
 pop rbx
 pop rax
 sub rax, rbx
@@ -56,14 +60,28 @@ pop rdi
 call dump_uint
 push 30
 push 9
+push 3
+pop rax
+pop rbx
+pop rcx
+push rbx
+push rax
+push rcx
 pop rbx
 pop rax
 mul rbx
+push rax
+pop rbx
+pop rax
+add rax, rbx
 push rax
 pop rdi
 call dump_uint
 push 6
 push 3
+push 7
+pop r15
+xor r15, r15
 pop rbx
 pop rax
 xor rdx, rdx
@@ -73,11 +91,24 @@ pop rdi
 call dump_uint
 push 7
 push 4
+pop rax
+pop rbx
+push rbx
+push rax
+push rbx
+push rax
 pop rbx
 pop rax
 xor rdx, rdx
 div rbx
 push rdx
+pop rbx
+pop rax
+xor rdx, rdx
+div rbx
+push rdx
+pop rdi
+call dump_uint
 pop rdi
 call dump_uint
 

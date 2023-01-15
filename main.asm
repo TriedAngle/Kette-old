@@ -61,11 +61,6 @@ entry $
         cmp     rax, 0
         jz      .exit_token_loop;
 
-        mov     rdi, rax
-        mov     rsi, rdx
-        call    print_string
-        call    print_newline
-       
         mov     r13, rax ; ptr sub string
         mov     r14, rdx ; len sub string
         
@@ -123,10 +118,74 @@ entry $
         mov     rdx, KEY_DUP_LEN
         call    mem_cmp
         cmp     rax, 1
-
         mov     rax, tkDup
         cmovz   r15, rax
         jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_SWAP]
+        mov     rdx, KEY_SWAP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSwap
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_ROT]
+        mov     rdx, KEY_ROT_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkRot
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_OVER]
+        mov     rdx, KEY_OVER_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkOver
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_DROP]
+        mov     rdx, KEY_DROP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkDrop
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_2DUP]
+        mov     rdx, KEY_2DUP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tk2Dup
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_2SWAP]
+        mov     rdx, KEY_2SWAP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tk2Swap
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_2DROP]
+        mov     rdx, KEY_2DROP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tk2Drop
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+
 
         cmp     r15, -1
         jnz     .finalize_keyword_simple
@@ -237,6 +296,30 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkDup
         jz      .output_dup
+
+
+        cmp     BYTE [r13 + rbx], tkSwap
+        jz      .output_swap
+
+        cmp     BYTE [r13 + rbx], tkRot
+        jz      .output_rot
+
+        cmp     BYTE [r13 + rbx], tkOver
+        jz      .output_over
+
+        cmp     BYTE [r13 + rbx], tkDrop
+        jz      .output_drop
+
+        cmp     BYTE [r13 + rbx], tk2Dup
+        jz      .output_2dup
+
+        cmp     BYTE [r13 + rbx], tk2Swap
+        jz      .output_2swap
+
+        cmp     BYTE [r13 + rbx], tk2Drop
+        jz      .output_2drop
+
+
         ; TODO: handle unknown bytecode
         ; could also detect wrong offsetting
         jmp     .output_end
@@ -328,7 +411,70 @@ entry $
             call    .output_end
         
         .output_swap:
-            lea     rdi
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SWAP
+            mov     rdx, ASM_SWAP_LEN
+            call    mem_move
+            add     r15, ASM_SWAP_LEN
+            add     rbx, 9
+            call    .output_end
+ 
+        .output_rot:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_ROT
+            mov     rdx, ASM_ROT_LEN
+            call    mem_move
+            add     r15, ASM_ROT_LEN
+            add     rbx, 9
+            call    .output_end
+ 
+        .output_over:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_OVER
+            mov     rdx, ASM_OVER_LEN
+            call    mem_move
+            add     r15, ASM_OVER_LEN
+            add     rbx, 9
+            call    .output_end
+ 
+        .output_drop:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_DROP
+            mov     rdx, ASM_DROP_LEN
+            call    mem_move
+            add     r15, ASM_DROP_LEN
+            add     rbx, 9
+            call    .output_end
+ 
+        .output_2dup:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_2DUP
+            mov     rdx, ASM_2DUP_LEN
+            call    mem_move
+            add     r15, ASM_2DUP_LEN
+            add     rbx, 9
+            call    .output_end
+ 
+        .output_2swap:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_2SWAP
+            mov     rdx, ASM_2SWAP_LEN
+            call    mem_move
+            add     r15, ASM_2SWAP_LEN
+            add     rbx, 9
+            call    .output_end
+ 
+        .output_2drop:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_2SWAP
+            mov     rdx, ASM_2SWAP_LEN
+            call    mem_move
+            add     r15, ASM_2SWAP_LEN
+            add     rbx, 9
+            call    .output_end
+ 
+
+
         .output_end:
 
         cmp rbx, r12
@@ -816,7 +962,28 @@ buf         rb  80
 segment readable
 ; LANGUAGE KEYWORDS
 KEY_DUP         db  "dup"
-KEY_DUP_LEN     = $ - KEY_DUP
+KEY_DUP_LEN     =   $ - KEY_DUP
+
+KEY_SWAP        db  "swap"
+KEY_SWAP_LEN    =   $ - KEY_SWAP
+
+KEY_ROT         db  "rot"
+KEY_ROT_LEN     =   $ - KEY_ROT
+
+KEY_OVER        db  "over"
+KEY_OVER_LEN    =   $ - KEY_OVER
+
+KEY_DROP        db  "drop"
+KEY_DROP_LEN    =   $ - KEY_DROP
+
+KEY_2DUP        db  "2dup"
+KEY_2DUP_LEN    =   $ - KEY_2DUP
+
+KEY_2SWAP       db  "2swap"
+KEY_2SWAP_LEN   =   $ - KEY_2SWAP
+
+KEY_2DROP       db  "2drop"
+KEY_2DROP_LEN   =   $ - KEY_2DROP
 
 ; ASSEMBLY OUTPUT
 ASM_PUSH        db  "push "
@@ -853,17 +1020,20 @@ ASM_ROT         db  "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "push rbx", 10,
 ASM_ROT_LEN     =   $ - ASM_ROT
 
 ASM_OVER        db  "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10
-ASM_OVER_LEN    =   $ - ASM_OVER_LEN
+ASM_OVER_LEN    =   $ - ASM_OVER
 
 ASM_DROP        db  "pop r15", 10, "xor r15, r15", 10
-ASM_DROP        =   $ - ASM_DROP
+ASM_DROP_LEN    =   $ - ASM_DROP
 
-ASM_2DUP        =   "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10, "push rax", 10
+ASM_2DUP        db   "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10, "push rax", 10
 ASM_2DUP_LEN    =   $ - ASM_2DUP
 
-ASM_2SWAP       =   "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "pop rdx", 10, "push rbx", 10, "push rax", 10, "push rdx", 10, "push rcx", 10
+ASM_2SWAP       db   "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "pop rdx", 10, "push rbx", 10, "push rax", 10, "push rdx", 10, "push rcx", 10
 
 ASM_2SWAP_LEN   =   $ - ASM_2SWAP
+
+ASM_2DROP       db   "pop rax", 10, "pop rax", 10, "xor rax, rax", 10
+ASM_2DROP_LEN   =   $ - ASM_2DROP
 
 
 ASM_HEADER      db "format ELF64 executable 3", 10
