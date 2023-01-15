@@ -2,4 +2,12 @@
 3 55 swap - .
 30 9 3 rot * + .
 6 3 7 drop / .
-7 4 2dup % % . .
+
+69 3 2dup / . drop 4 % .
+
+5 3 2dup * dup . swap - .
+
+69 .
+3 6 + dup . 3 * dup . 3 / .
+69 .
+

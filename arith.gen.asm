@@ -89,8 +89,8 @@ div rbx
 push rax
 pop rdi
 call dump_uint
-push 7
-push 4
+push 69
+push 3
 pop rax
 pop rbx
 push rbx
@@ -101,7 +101,12 @@ pop rbx
 pop rax
 xor rdx, rdx
 div rbx
-push rdx
+push rax
+pop rdi
+call dump_uint
+pop r15
+xor r15, r15
+push 4
 pop rbx
 pop rax
 xor rdx, rdx
@@ -109,6 +114,66 @@ div rbx
 push rdx
 pop rdi
 call dump_uint
+push 5
+push 3
+pop rax
+pop rbx
+push rbx
+push rax
+push rbx
+push rax
+pop rbx
+pop rax
+mul rbx
+push rax
+pop rax
+push rax
+push rax
+pop rdi
+call dump_uint
+pop rax
+pop rbx
+push rax
+push rbx
+pop rbx
+pop rax
+sub rax, rbx
+push rax
+pop rdi
+call dump_uint
+push 69
+pop rdi
+call dump_uint
+push 3
+push 6
+pop rbx
+pop rax
+add rax, rbx
+push rax
+pop rax
+push rax
+push rax
+pop rdi
+call dump_uint
+push 3
+pop rbx
+pop rax
+mul rbx
+push rax
+pop rax
+push rax
+push rax
+pop rdi
+call dump_uint
+push 3
+pop rbx
+pop rax
+xor rdx, rdx
+div rbx
+push rax
+pop rdi
+call dump_uint
+push 69
 pop rdi
 call dump_uint
 
