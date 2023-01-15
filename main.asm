@@ -10,18 +10,31 @@ tkDiv       = 3
 tkMod       = 4
 tkModiv     = 5
 
-tkPush      = 6
-tkDump      = 7
-tkDup       = 8
-tkSwap      = 9
-tkRot       = 10
-tkOver      = 11
-tkDrop      = 12
+tkEqual     = 6
+tkGreater   = 7
+tkLesser    = 8
+tkGEqual    = 9
+tkLEqual    = 10
 
-tk2Dup      = 13
-tk2Swap     = 14
-tk2Over     = 15
-tk2Drop     = 16
+tkPush      = 11
+tkDump      = 12
+tkDup       = 13
+tkSwap      = 14
+tkRot       = 15
+tkOver      = 16
+tkDrop      = 17
+
+tk2Dup      = 18
+tk2Swap     = 19
+tk2Over     = 20
+tk2Drop     = 21
+
+tkIf        = 22
+tkElse      = 23
+tkWhile     = 24
+tkDo        = 25
+tkEnd       = 26
+
 
 tkExit      = 255
 
@@ -89,9 +102,34 @@ entry $
         cmp     BYTE [r13], "%"
         cmovz   r15, rax
         
+        mov     rax, tkModiv
+        cmp     WORD [r13], "/%"
+        cmovz   r15, rax
+
         mov     rax, tkDump
         cmp     BYTE [r13], "."
         cmovz   r15, rax
+
+        mov     rax, tkEqual
+        cmp     BYTE [r13], "="
+        cmovz   r15, rax
+
+        mov     rax, tkGreater
+        cmp     BYTE [r13], ">"
+        cmovz   r15, rax
+
+        mov     rax, tkLesser
+        cmp     BYTE [r13], "<"
+        cmovz   r15, rax
+
+        mov     rax, tkGEqual
+        cmp     WORD [r13], ">="
+        cmovz   r15, rax
+
+        mov     rax, tkLEqual
+        cmp     WORD [r13], "<="
+        cmovz   r15, rax
+
 
         ; if opcode was set (so not -1), jump to symbol handling
         ; if opcode was not set, continue checking what it is
@@ -290,13 +328,32 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkMod
         jz      .output_mod
+        
+        cmp     BYTE [r13 + rbx], tkModiv
+        jz      .output_modiv
+
+
+        cmp     BYTE [r13 + rbx], tkEqual
+        jz      .output_equal
+
+        cmp     BYTE [r13 + rbx], tkGreater
+        jz      .output_greater
+
+        cmp     BYTE [r13 + rbx], tkLesser
+        jz      .output_lesser
+
+        cmp     BYTE [r13 + rbx], tkGEqual
+        jz      .output_greater_equal
+
+        cmp     BYTE [r13 + rbx], tkLEqual
+        jz      .output_lesser_equal
+
 
         cmp     BYTE [r13 + rbx], tkDump
         jz      .output_dump
 
         cmp     BYTE [r13 + rbx], tkDup
         jz      .output_dup
-
 
         cmp     BYTE [r13 + rbx], tkSwap
         jz      .output_swap
@@ -391,6 +448,62 @@ entry $
             add     r15, ASM_MOD_LEN
             add     rbx, 9
             call    .output_end
+        
+        .output_modiv:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_MODIV
+            mov     rdx, ASM_MODIV_LEN
+            call    mem_move
+            add     r15, ASM_MODIV_LEN
+            add     rbx, 9
+            call    .output_end
+
+
+       .output_equal:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_EQUAL
+            mov     rdx, ASM_EQUAL_LEN
+            call    mem_move
+            add     r15, ASM_EQUAL_LEN
+            add     rbx, 9
+            call    .output_end
+
+       .output_greater:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_GREATER
+            mov     rdx, ASM_GREATER_LEN
+            call    mem_move
+            add     r15, ASM_GREATER_LEN
+            add     rbx, 9
+            call    .output_end
+
+       .output_lesser:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_LESSER
+            mov     rdx, ASM_LESSER_LEN
+            call    mem_move
+            add     r15, ASM_LESSER_LEN
+            add     rbx, 9
+            call    .output_end
+
+       .output_greater_equal:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_GEQUAL
+            mov     rdx, ASM_GEQUAL_LEN
+            call    mem_move
+            add     r15, ASM_GEQUAL_LEN
+            add     rbx, 9
+            call    .output_end
+
+       .output_lesser_equal:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_LEQUAL
+            mov     rdx, ASM_LEQUAL_LEN
+            call    mem_move
+            add     r15, ASM_LEQUAL_LEN
+            add     rbx, 9
+            call    .output_end
+
 
         .output_dump:
             lea     rdi, [r14 + r15]
@@ -986,53 +1099,69 @@ KEY_2DROP       db  "2drop"
 KEY_2DROP_LEN   =   $ - KEY_2DROP
 
 ; ASSEMBLY OUTPUT
-ASM_PUSH        db  "push "
+ASM_PUSH        db  "; -- PUSH --", 10, "push "
 ASM_PUSH_LEN    =   $ - ASM_PUSH
 
-ASM_ADD         db  "pop rbx", 10, "pop rax", 10, "add rax, rbx", 10, "push rax", 10
+ASM_ADD         db  "; -- ADD --", 10, "pop rbx", 10, "pop rax", 10, "add rax, rbx", 10, "push rax", 10
 ASM_ADD_LEN     =   $ - ASM_ADD
 
-ASM_SUB         db  "pop rbx", 10, "pop rax", 10, "sub rax, rbx", 10, "push rax", 10
+ASM_SUB         db  "; -- SUB --", 10, "pop rbx", 10, "pop rax", 10, "sub rax, rbx", 10, "push rax", 10
 ASM_SUB_LEN     =   $ - ASM_SUB
 
-ASM_MUL         db  "pop rbx", 10, "pop rax", 10, "mul rbx", 10, "push rax", 10
+ASM_MUL         db  "; -- MUL --", 10, "pop rbx", 10, "pop rax", 10, "mul rbx", 10, "push rax", 10
 ASM_MUL_LEN     =   $ - ASM_MUL
 
-ASM_DIV         db  "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rax", 10
+ASM_DIV         db  "; -- DIV --", 10, "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rax", 10
 ASM_DIV_LEN     =   $ - ASM_DIV
 
-ASM_MOD         db  "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rdx", 10
+ASM_MOD         db  "; -- MOD --", 10, "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rdx", 10
 ASM_MOD_LEN     =   $ - ASM_MOD
 
-ASM_MODIV       db  "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rdx", 10, "push rax", 10
+ASM_MODIV       db  "; -- MODIV --", 10, "pop rbx", 10, "pop rax", 10, "xor rdx, rdx", 10, "div rbx", 10, "push rdx", 10, "push rax", 10
 ASM_MODIV_LEN   =   $ - ASM_MODIV
 
-ASM_DUMP        db  "pop rdi", 10, "call dump_uint", 10
+
+ASM_EQUAL       db  "; -- EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmove rcx, rdx", 10, "push rcx", 10
+ASM_EQUAL_LEN   =   $ - ASM_EQUAL
+
+ASM_GREATER     db  "; -- GREATER --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovg rcx, rdx", 10, "push rcx", 10
+ASM_GREATER_LEN =   $ - ASM_GREATER
+
+ASM_LESSER      db  "; -- LESSER --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovl rcx, rdx", 10, "push rcx", 10
+ASM_LESSER_LEN  =   $ - ASM_LESSER
+
+ASM_GEQUAL      db  "; -- GREATER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovge rcx, rdx", 10, "push rcx", 10
+ASM_GEQUAL_LEN   =   $ - ASM_GEQUAL
+
+ASM_LEQUAL       db  "; -- LESSER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovle rcx, rdx", 10, "push rcx", 10
+ASM_LEQUAL_LEN   =   $ - ASM_LEQUAL
+
+ASM_DUMP        db  "; -- DUMP --", 10, "pop rdi", 10, "call dump_uint", 10
 ASM_DUMP_LEN    =   $ - ASM_DUMP
 
-ASM_DUP         db  "pop rax", 10, "push rax", 10, "push rax", 10
+ASM_DUP         db  "; -- DUP --", 10, "pop rax", 10, "push rax", 10, "push rax", 10
 ASM_DUP_LEN     =   $ - ASM_DUP
 
-ASM_SWAP        db  "pop rax", 10, "pop rbx", 10, "push rax", 10, "push rbx", 10
+ASM_SWAP        db  "; -- SWAP --", 10, "pop rax", 10, "pop rbx", 10, "push rax", 10, "push rbx", 10
 ASM_SWAP_LEN    =   $ - ASM_SWAP
 
-ASM_ROT         db  "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "push rbx", 10, "push rax", 10, "push rcx", 10
+ASM_ROT         db  "; -- ROT --", 10, "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "push rbx", 10, "push rax", 10, "push rcx", 10
 ASM_ROT_LEN     =   $ - ASM_ROT
 
-ASM_OVER        db  "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10
+ASM_OVER        db  "; -- OVER --", 10, "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10
 ASM_OVER_LEN    =   $ - ASM_OVER
 
-ASM_DROP        db  "pop r15", 10, "xor r15, r15", 10
+ASM_DROP        db  "; -- DROP --", 10, "pop r15", 10, "xor r15, r15", 10
 ASM_DROP_LEN    =   $ - ASM_DROP
 
-ASM_2DUP        db   "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10, "push rax", 10
+ASM_2DUP        db   "; -- 2DUP --", 10, "pop rax", 10, "pop rbx", 10, "push rbx", 10, "push rax", 10, "push rbx", 10, "push rax", 10
 ASM_2DUP_LEN    =   $ - ASM_2DUP
 
-ASM_2SWAP       db   "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "pop rdx", 10, "push rbx", 10, "push rax", 10, "push rdx", 10, "push rcx", 10
+ASM_2SWAP       db   "; -- 2SWAP --", 10, "pop rax", 10, "pop rbx", 10, "pop rcx", 10, "pop rdx", 10, "push rbx", 10, "push rax", 10, "push rdx", 10, "push rcx", 10
 
 ASM_2SWAP_LEN   =   $ - ASM_2SWAP
 
-ASM_2DROP       db   "pop rax", 10, "pop rax", 10, "xor rax, rax", 10
+ASM_2DROP       db   "; -- 2DROP --", 10, "pop rax", 10, "pop rax", 10, "xor rax, rax", 10
 ASM_2DROP_LEN   =   $ - ASM_2DROP
 
 

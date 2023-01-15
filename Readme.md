@@ -14,7 +14,8 @@ assembly =(compiler)=> forth =(interpreter) => common lisp =(compiler)=> ice
 [dump] = none
 [dup, 2dup, swap]
 [push] = 8 # number | address (TODO later)
-
+[if] = 8 | jump label index
+[end] = 8 | jump label index  
 
 ### SysV ABI
 
