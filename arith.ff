@@ -1,7 +1,4 @@
-5 4 > if
-    420 .
-end
-
-4 5 > if
-    69 .
+100 while dup 0 > do
+    dup .
+    1 -
 end

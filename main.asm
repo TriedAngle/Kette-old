@@ -35,8 +35,11 @@ tkWhile     = 24
 tkDo        = 25
 tkEnd       = 26
 
-
 tkExit      = 255
+
+
+varEndIf    = 0
+varEndDo    = 1
 
 segment readable executable
 
@@ -241,7 +244,26 @@ entry $
         cmp     rax, 1
         mov     rax, tkEnd
         mov     r15, rax
+        jz      .finalize_keyword_end
+
+        mov     rdi, r13
+        lea     rsi, [KEY_WHILE]
+        mov     rdx, KEY_WHILE_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkWhile
+        mov     r15, rax
         jz      .finalize_keyword_control_flow
+
+        mov     rdi, r13
+        lea     rsi, [KEY_DO]
+        mov     rdx, KEY_DO_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkDo
+        mov     r15, rax
+        jz      .finalize_keyword_control_flow
+
 
         jmp     .no_keyword
         
@@ -266,6 +288,18 @@ entry $
         add     rbx, 17
         jmp     .end_word
 
+        .finalize_keyword_end:
+        mov     rdi, [rbp - 48]
+        mov     BYTE [rdi + rbx], r15b
+        mov     r8d, DWORD [rbp - 24]
+        mov     r9d, DWORD [rbp - 32]
+        mov     DWORD [rdi + rbx + 1], r8d
+        mov     DWORD [rdi + rbx + 5], r9d
+        mov     BYTE [rdi + rbx + 9], 0
+        mov     QWORD [rdi + rbx + 10], 0
+        mov     QWORD [rdi + rbx + 18], 0
+        add     rbx, 26
+        jmp     .end_word
 
         .no_keyword:
         
@@ -329,41 +363,89 @@ entry $
         jz      .loop_cross_reference_stop 
    
         cmp     BYTE [r13 + rbx], tkPush
-        jnz     .cross_reference_not_push
-        add     rbx, 17
+        jz      .cross_reference_skip_push
+
+        cmp     BYTE [r13 + rbx], tkIf
+        jz      .cross_reference_if
+
+        cmp     BYTE [r13 + rbx], tkWhile
+        jz      .cross_reference_while
+
+        cmp     BYTE [r13 + rbx], tkDo
+        jz      .cross_reference_do
+        
+        cmp     BYTE [r13 + rbx], tkEnd
+        jz      .cross_reference_end
+
+        add     rbx, 9 ; default size
+        jmp     .loop_cross_reference
+
+
+        .cross_reference_skip_push:
+        add      rbx, 17
         jmp      .loop_cross_reference
 
-        .cross_reference_not_push:
-        cmp     BYTE [r13 + rbx], tkIf
-        jnz     .cross_reference_not_if
+        .cross_reference_if:
         push    rbx
         add     rbx, 17
         inc     r14
         jmp     .loop_cross_reference
 
-        .cross_reference_not_if:
+        .cross_reference_while:
+        push    rbx
+        add     rbx, 17
+        inc     r14
+        jmp     .loop_cross_reference
 
-        cmp     BYTE [r13 + rbx], tkEnd
-        jnz     .cross_reference_not_end
-
+        .cross_reference_do:
         cmp     r14, 0
-        je     error_end_without_if
+        je      error_do_without_while
+        pop     rax
+        mov     QWORD [r13 + rbx + 9], rax ; write while in do, so it can be referenced in end
+        push    rbx
+        add     rbx, 17
+        jmp     .loop_cross_reference ; r14 stays constant
+
+        .cross_reference_end:
+        cmp     r14, 0
+        je      error_too_many_end
         ; pop the last if and write current jump counter in both
         pop     rax
-        mov     QWORD [r13 + rax + 9], r15
-        mov     QWORD [r13 + rbx + 9], r15
-        add     rbx, 17
-        inc     r15
-        dec     r14
-        jmp     .loop_cross_reference
 
-        .cross_reference_not_end:
-        ; default jump value
+        cmp     BYTE [r13 + rax], tkDo
+        jz      .cross_reference_end_do
+        .cross_reference_end_if:
+            ; handle if
+            mov     QWORD [r13 + rax + 9], r15 
+            mov     BYTE  [r13 + rbx + 9], varEndIf ;
+            mov     QWORD [r13 + rbx + 10], r15
+            add     rbx, 26
+            inc     r15
+            dec     r14
+            jmp     .loop_cross_reference
         
-        add     rbx, 9
-        jmp     .loop_cross_reference
+        .cross_reference_end_do:
+            ; rax = do
+            ; rdi = while
+            mov     rdi, [r13 + rax + 9]
+            
+            mov     [r13 + rdi + 9], r15 ; while label
+            mov     BYTE [r13 + rbx + 9], varEndDo
+            mov     [r13 + rbx + 10], r15 ; jmp while label
+            
+            inc     r15
+            mov     [r13 + rax + 9], r15 ; jmp end label
+            mov     [r13 + rbx + 18], r15 ; end label
+            
+            add     rbx, 26
+            inc     r15
+            dec     r14
+            jmp     .loop_cross_reference
+    
+
         
     .loop_cross_reference_stop:
+
 
     cmp     r14, 0
     jg     error_if_without_end
@@ -457,6 +539,12 @@ entry $
         cmp     BYTE [r13 + rbx], tkIf
         jz      .output_if
 
+        cmp     BYTE [r13 + rbx], tkWhile
+        jz      .output_while
+
+        cmp     BYTE [r13 + rbx], tkDo
+        jz      .output_do
+        
         cmp     BYTE [r13 + rbx], tkEnd
         jz      .output_end
 
@@ -692,20 +780,47 @@ entry $
             mov     BYTE [r14 + r15], 10
             add     r15, 1
             jmp     .output_jmp_end
-            
-        .output_end:
+        
+        .output_while:
             lea     rdi, [r14 + r15]
-            mov     rsi, ASM_END
-            mov     rdx, ASM_END_LEN
+            mov     rsi, ASM_WHILE
+            mov     rdx, ASM_WHILE_LEN
             call    mem_move
-            add     r15, ASM_END_LEN
+            add     r15, ASM_WHILE_LEN
 
             lea     rsi, [rsp]
             sub     rsp, 20
             add     rbx, 9
             mov     rdi, [r13 + rbx]
             call    uitds
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+            add     rbx, 8
+            
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_END_AEND
+            mov     rdx, ASM_END_AEND_LEN
+            call    mem_move
+            add     r15, ASM_END_AEND_LEN
 
+            jmp     .output_jmp_end
+
+
+        .output_do:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_DO
+            mov     rdx, ASM_DO_LEN
+            call    mem_move
+            add     r15, ASM_DO_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            add     rbx, 9
+            mov     rdi, [r13 + rbx]
+            call    uitds
             lea     rdi, [r14 + r15]
             mov     rsi, rax
             call    mem_move
@@ -713,15 +828,106 @@ entry $
             add     r15, rdx
             add     rbx, 8
 
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_END_END
-            mov     rdx, ASM_END_END_LEN
-            call    mem_move
-            add     r15, ASM_END_END_LEN
-
             mov     BYTE [r14 + r15], 10
             add     r15, 1
             jmp     .output_jmp_end
+
+        .output_end:
+            cmp     BYTE [r13 + rbx + 9], varEndIf
+            jz      .output_end_var_if
+            cmp     BYTE [r13 + rbx + 9], varEndDo
+            jz      .output_end_var_do
+
+            ; TODO: HANDLE INVALID END VARIATION 
+            
+            .output_end_var_if:
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_END_L
+                mov     rdx, ASM_END_L_LEN
+                call    mem_move
+                add     r15, ASM_END_L_LEN
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_END_ADDR
+                mov     rdx, ASM_END_ADDR_LEN
+                call    mem_move
+                add     r15, ASM_END_ADDR_LEN
+
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 10]
+                call    uitds
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r15, rdx
+                
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_END_AEND
+                mov     rdx, ASM_END_AEND_LEN
+                call    mem_move
+                add     r15, ASM_END_AEND_LEN
+
+                add     rbx, 26
+                jmp     .output_jmp_end
+
+            .output_end_var_do:
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_END_L
+                mov     rdx, ASM_END_L_LEN
+                call    mem_move
+                add     r15, ASM_END_L_LEN
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_END_JMP
+                mov     rdx, ASM_END_JMP_LEN
+                call    mem_move
+                add     r15, ASM_END_JMP_LEN
+                
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 10]
+                call    uitds
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r15, rdx
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, newline
+                mov     rdx, 1
+                call    mem_move
+                add     r15, 1
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_END_ADDR
+                mov     rdx, ASM_END_ADDR_LEN
+                call    mem_move
+                add     r15, ASM_END_ADDR_LEN
+                
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 18]
+                call    uitds
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r15, rdx
+                
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_END_AEND
+                mov     rdx, ASM_END_AEND_LEN
+                call    mem_move
+                add     r15, ASM_END_AEND_LEN
+
+                add     rbx, 26
+                jmp     .output_jmp_end
  
 
         .output_jmp_end:
@@ -1203,7 +1409,7 @@ error_file_not_found:
     mov     rax, SYS_EXIT
     syscall
 
-error_end_without_if:
+error_too_many_end:
     mov     rdi, STDOUT
     mov     rsi, err1
     mov     rdx, err1len
@@ -1225,6 +1431,18 @@ error_if_without_end:
     mov     rax, SYS_EXIT
     syscall
 
+error_do_without_while:
+    mov     rdi, STDOUT
+    mov     rsi, err3
+    mov     rdx, err3len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
+
 
 segment readable writable
 buf         rb  80
@@ -1235,12 +1453,14 @@ segment readable
 err0        db  "File not found"
 err0len     =   $ - err0
 
-err1        db  "end without if"
+err1        db  "too many end"
 err1len     =   $ - err1
 
-err2        db  "if without end"
+err2        db  "missing closing end"
 err2len     =   $ - err2
 
+err3        db  "do without while"
+err3len     =   $ - err3
 
 ; LANGUAGE KEYWORDS
 KEY_DUP         db  "dup"
@@ -1270,8 +1490,17 @@ KEY_2DROP_LEN   =   $ - KEY_2DROP
 KEY_IF          db  "if"
 KEY_IF_LEN      =   $ - KEY_IF
 
+KEY_ELSE        db  "else"
+KEY_ELSE_LEN    =   $ - KEY_ELSE
+
 KEY_END         db  "end"
 KEY_END_LEN     =   $ - KEY_END
+
+KEY_WHILE       db  "while"
+KEY_WHILE_LEN   =   $ - KEY_WHILE
+
+KEY_DO          db  "do"
+KEY_DO_LEN      =   $ - KEY_DO
 
 ; ASSEMBLY OUTPUT
 ASM_PUSH        db  "; -- PUSH --", 10, "push " ; insert number here
@@ -1342,10 +1571,23 @@ ASM_2DROP_LEN   =   $ - ASM_2DROP
 ASM_IF          db  "; -- IF --", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr" ; insert jmp label
 ASM_IF_LEN      =   $ - ASM_IF
 
-ASM_END         db  "; -- END --", 10, ".Addr"
-ASM_END_LEN     =   $ - ASM_END
-ASM_END_END     db  ":"
-ASM_END_END_LEN =   $ - ASM_END_END
+ASM_WHILE       db  "; -- WHILE --", 10, ".Addr"
+ASM_WHILE_LEN   =   $ - ASM_WHILE
+
+ASM_DO          db  "; -- DO --", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr"
+ASM_DO_LEN      =   $ - ASM_DO
+
+ASM_END_L       db  "; -- END --", 10
+ASM_END_L_LEN   =   $ - ASM_END_L
+
+ASM_END_ADDR    db  ".Addr"
+ASM_END_ADDR_LEN=   $ - ASM_END_ADDR
+
+ASM_END_AEND    db  ":", 10
+ASM_END_AEND_LEN=   $ - ASM_END_AEND
+
+ASM_END_JMP     db  "jmp .Addr"
+ASM_END_JMP_LEN =   $ - ASM_END_JMP
 
 ASM_HEADER      db "format ELF64 executable 3", 10
     db 10

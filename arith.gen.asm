@@ -37,32 +37,15 @@ ret
 
 entry $
 ; -- PUSH --
-push 5
-; -- PUSH --
-push 4
-; -- GREATER --
-pop rbx
-pop rax
-xor rcx, rcx
-cmp rax, rbx
-mov rdx, 1
-cmovg rcx, rdx
-push rcx
-; -- IF --
-pop rax
-cmp rax, 0
-jz .Addr0
-; -- PUSH --
-push 420
-; -- DUMP --
-pop rdi
-call dump_uint
-; -- END --
+push 100
+; -- WHILE --
 .Addr0:
+; -- DUP --
+pop rax
+push rax
+push rax
 ; -- PUSH --
-push 4
-; -- PUSH --
-push 5
+push 0
 ; -- GREATER --
 pop rbx
 pop rax
@@ -71,16 +54,26 @@ cmp rax, rbx
 mov rdx, 1
 cmovg rcx, rdx
 push rcx
-; -- IF --
+; -- DO --
 pop rax
 cmp rax, 0
 jz .Addr1
-; -- PUSH --
-push 69
+; -- DUP --
+pop rax
+push rax
+push rax
 ; -- DUMP --
 pop rdi
 call dump_uint
+; -- PUSH --
+push 1
+; -- SUB --
+pop rbx
+pop rax
+sub rax, rbx
+push rax
 ; -- END --
+jmp .Addr0
 .Addr1:
 
 mov rdi, 0
