@@ -1,5 +1,5 @@
-# Frozen Forth
-forth implementation in x64 assembly
+# Kette
+Concatenative Stack-Based Programming Language
 
 ## Features
 
@@ -7,19 +7,27 @@ forth implementation in x64 assembly
 - [x] loops
 - [ ] procs
 - [ ] strings | NOTE: parsing done
+- [ ] comments
 - [ ] single error handling | multi error handling will be added in self host
 - [ ] command line arguments & refactor to make them useful (requires fork or clone and exec?)
+- [ ] ptr
+- [ ] globals (const and mut)
 - [ ] types (int, string, ptr)
 - [ ] static typechecking
 - [ ] arrays
 - [ ] syscalls
 - [ ] match (on types & values) 
 - [ ] modules
+- [ ] simple datastructures ex. HashMap, Dynamic Array
 - [ ] self hosted
 - [ ] some optimizations
 - [ ] proc options e.g. "inline", "c"
+- [ ] memory management
 - [ ] c-interop
+- [ ] some OOP
+- [ ] Stack Effects & Pure Functions
 - [ ] multithreading
+- [ ] REPL
 - [ ] AArch64 Mac & Windows and x64 Windows backend
 - [ ] javascript backend lol
 - [ ] package manager
