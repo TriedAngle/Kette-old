@@ -1,7 +1,19 @@
 100 while dup 0 > do
-    dup 2 % 0 = if
-        dup .
-    end
+    dup 2 % 0 = if dup . else dup 2 * . end
     1 -
 end
 
+99999 .
+
+5 2 > if
+    2 5 > if
+        2 .
+    else
+        3 .
+    end
+    420 .
+else 
+    69 .
+end
+
+10 .

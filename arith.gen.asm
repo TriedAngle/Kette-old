@@ -39,7 +39,7 @@ entry $
 ; -- PUSH --
 push 100
 ; -- WHILE --
-.Addr1:
+.Addr2:
 ; -- DUP --
 pop rax
 push rax
@@ -57,7 +57,7 @@ push rcx
 ; -- DO --
 pop rax
 cmp rax, 0
-jz .Addr2
+jz .Addr3
 ; -- DUP --
 pop rax
 push rax
@@ -91,8 +91,25 @@ push rax
 ; -- DUMP --
 pop rdi
 call dump_uint
-; -- END --
+; -- ELSE --
+jmp .Addr1
 .Addr0:
+; -- DUP --
+pop rax
+push rax
+push rax
+; -- PUSH --
+push 2
+; -- MUL --
+pop rbx
+pop rax
+mul rbx
+push rax
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- END --
+.Addr1:
 ; -- PUSH --
 push 1
 ; -- SUB --
@@ -101,8 +118,80 @@ pop rax
 sub rax, rbx
 push rax
 ; -- END --
-jmp .Addr1
-.Addr2:
+jmp .Addr2
+.Addr3:
+; -- PUSH --
+push 99999
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- PUSH --
+push 5
+; -- PUSH --
+push 2
+; -- GREATER --
+pop rbx
+pop rax
+xor rcx, rcx
+cmp rax, rbx
+mov rdx, 1
+cmovg rcx, rdx
+push rcx
+; -- IF --
+pop rax
+cmp rax, 0
+jz .Addr6
+; -- PUSH --
+push 2
+; -- PUSH --
+push 5
+; -- GREATER --
+pop rbx
+pop rax
+xor rcx, rcx
+cmp rax, rbx
+mov rdx, 1
+cmovg rcx, rdx
+push rcx
+; -- IF --
+pop rax
+cmp rax, 0
+jz .Addr4
+; -- PUSH --
+push 2
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- ELSE --
+jmp .Addr5
+.Addr4:
+; -- PUSH --
+push 3
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- END --
+.Addr5:
+; -- PUSH --
+push 420
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- ELSE --
+jmp .Addr7
+.Addr6:
+; -- PUSH --
+push 69
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- END --
+.Addr7:
+; -- PUSH --
+push 10
+; -- DUMP --
+pop rdi
+call dump_uint
 
 mov rdi, 0
 mov rax, 60

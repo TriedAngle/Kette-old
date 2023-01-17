@@ -3,19 +3,26 @@ forth implementation in x64 assembly
 
 ## Features
 
-- [ ] if | TODO: else missing
+- [x] if else
 - [x] loops
 - [ ] procs
 - [ ] strings | NOTE: parsing done
-- [ ] command line arguments
-- [ ] types
-- [ ] typechecking
+- [ ] single error handling | multi error handling will be added in self host
+- [ ] command line arguments & refactor to make them useful (requires fork or clone and exec?)
+- [ ] types (int, string, ptr)
+- [ ] static typechecking
 - [ ] arrays
+- [ ] syscalls
+- [ ] match (on types & values) 
+- [ ] modules
 - [ ] self hosted
-- [ ] proc options e.g. "inline"
+- [ ] some optimizations
+- [ ] proc options e.g. "inline", "c"
+- [ ] c-interop
 - [ ] multithreading
 - [ ] AArch64 Mac & Windows and x64 Windows backend
-
+- [ ] javascript backend lol
+- [ ] package manager
 
 ## Compiler Design
 ### 1. Lexing

@@ -3,45 +3,46 @@ format ELF64 executable 3
 include "linux.inc"
 
 ; Tokens
-tkAdd       = 0
-tkSub       = 1
-tkMul       = 2
-tkDiv       = 3
-tkMod       = 4
-tkModiv     = 5
+tkNoOp      = 0
+tkAdd       = 1
+tkSub       = 2
+tkMul       = 3
+tkDiv       = 4
+tkMod       = 5
+tkModiv     = 6
 
-tkEqual     = 6
-tkGreater   = 7
-tkLesser    = 8
-tkGEqual    = 9
-tkLEqual    = 10
+tkEqual     = 7
+tkGreater   = 8
+tkLesser    = 9
+tkGEqual    = 10
+tkLEqual    = 11
 
-tkPush      = 11
-tkDump      = 12
-tkDup       = 13
-tkSwap      = 14
-tkRot       = 15
-tkOver      = 16
-tkDrop      = 17
+tkPush      = 12
+tkDump      = 13
+tkDup       = 14
+tkSwap      = 15
+tkRot       = 16
+tkOver      = 17
+tkDrop      = 18
 
-tk2Dup      = 18
-tk2Swap     = 19
-tk2Over     = 20
-tk2Drop     = 21
+tk2Dup      = 19
+tk2Swap     = 20
+tk2Over     = 21
+tk2Drop     = 22
 
-tkIf        = 22
-tkElse      = 23
-tkWhile     = 24
-tkDo        = 25
-tkProc      = 26
-tkEnd       = 27
+tkIf        = 23
+tkElse      = 24
+tkWhile     = 25
+tkDo        = 26
+tkProc      = 27
+tkEnd       = 28
 
 
 tkExit      = 255
 
 
-varEndIf    = 0
-varEndDo    = 1
+varEndIf    = 1
+varEndDo    = 2
 
 segment readable executable
 
@@ -237,15 +238,14 @@ entry $
         mov     r15, rax
         jz      .finalize_keyword_control_flow
 
-
         mov     rdi, r13
-        lea     rsi, [KEY_END]
-        mov     rdx, KEY_END_LEN
+        lea     rsi, [KEY_ELSE]
+        mov     rdx, KEY_ELSE_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkEnd
+        mov     rax, tkElse
         mov     r15, rax
-        jz      .finalize_keyword_end
+        jz      .finalize_keyword_control_flow
 
         mov     rdi, r13
         lea     rsi, [KEY_WHILE]
@@ -264,6 +264,15 @@ entry $
         mov     rax, tkDo
         mov     r15, rax
         jz      .finalize_keyword_control_flow
+
+        mov     rdi, r13
+        lea     rsi, [KEY_END]
+        mov     rdx, KEY_END_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkEnd
+        mov     r15, rax
+        jz      .finalize_keyword_end
 
 
         jmp     .no_keyword
@@ -365,6 +374,9 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkIf
         jz      .cross_reference_if
+        
+        cmp     BYTE [r13 + rbx], tkElse
+        jz      .cross_reference_else
 
         cmp     BYTE [r13 + rbx], tkWhile
         jz      .cross_reference_while
@@ -385,6 +397,17 @@ entry $
         inc     r14
         jmp     .loop_cross_reference_end
 
+        .cross_reference_else:
+        cmp     r14, 0
+        je      error_else_without_if
+        pop     rax
+        mov     QWORD [r13 + rax + 9], r15
+        mov     QWORD [r13 + rbx + 17], r15 ; for if to jump to if false
+        inc     r15
+        push    rbx
+        jmp     .loop_cross_reference_end ; r14 stays the same
+
+
         .cross_reference_while:
         push    rbx
         inc     r14
@@ -403,16 +426,19 @@ entry $
         je      error_too_many_end
         ; pop the last if and write current jump counter in both
         pop     rax
+        dec     r14
 
         cmp     BYTE [r13 + rax], tkDo
         jz      .cross_reference_end_do
+        cmp     BYTE [r13 + rax], tkElse
+        jz      .cross_reference_end_else
+        
         .cross_reference_end_if:
             ; handle if
             mov     QWORD [r13 + rax + 9], r15 
             mov     BYTE  [r13 + rbx + 9], varEndIf ;
             mov     QWORD [r13 + rbx + 10], r15
             inc     r15
-            dec     r14
             jmp     .loop_cross_reference_end
         
         .cross_reference_end_do:
@@ -429,7 +455,13 @@ entry $
             mov     [r13 + rbx + 18], r15 ; end label
             
             inc     r15
-            dec     r14
+            jmp     .loop_cross_reference_end
+
+        .cross_reference_end_else:
+            mov     [r13 + rax + 9], r15
+            mov     BYTE [r13 + rbx + 9], varEndIf ; should be able to reuse this
+            mov     [r13 + rbx + 10], r15
+            inc     r15
             jmp     .loop_cross_reference_end
     
         .loop_cross_reference_end:
@@ -439,7 +471,6 @@ entry $
 
         
     .loop_cross_reference_stop:
-
 
     cmp     r14, 0
     jg     error_if_without_end
@@ -534,6 +565,9 @@ entry $
         cmp     BYTE [r13 + rbx], tkIf
         jz      .output_if
 
+        cmp     BYTE [r13 + rbx], tkElse
+        jz      .output_else
+
         cmp     BYTE [r13 + rbx], tkWhile
         jz      .output_while
 
@@ -543,6 +577,9 @@ entry $
         cmp     BYTE [r13 + rbx], tkEnd
         jz      .output_end
 
+
+        cmp     BYTE [r13 + rbx], tkNoOp
+        jz      .output_jmp_end ; skip no ops
 
         ; TODO: handle unknown bytecode
         ; could also detect wrong offsetting
@@ -752,6 +789,56 @@ entry $
             add     r15, 1
             jmp     .output_jmp_end
         
+
+        .output_else:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_ELSE
+            mov     rdx, ASM_ELSE_LEN
+            call    mem_move
+            add     r15, ASM_ELSE_LEN
+            
+            ; jump to end after if
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 9]
+            call    uitds
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+
+            mov     BYTE [r14 + r15], 10
+            add     r15, 1
+            
+            ; jump for if
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_END_ADDR
+            mov     rdx, ASM_END_ADDR_LEN
+            call    mem_move
+            add     r15, ASM_END_ADDR_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 17]
+            call    uitds
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+            
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_END_AEND
+            mov     rdx, ASM_END_AEND_LEN
+            call    mem_move
+            add     r15, ASM_END_AEND_LEN
+            
+            jmp     .output_jmp_end
+            
+
         .output_while:
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_WHILE
@@ -807,7 +894,7 @@ entry $
 
             ; TODO: HANDLE INVALID END VARIATION 
             
-            .output_end_var_if:
+            .output_end_var_if: 
                 lea     rdi, [r14 + r15]
                 mov     rsi, ASM_END_L
                 mov     rdx, ASM_END_L_LEN
@@ -1418,6 +1505,16 @@ error_do_without_while:
     mov     rax, SYS_EXIT
     syscall
 
+error_else_without_if:
+    mov     rdi, STDOUT
+    mov     rsi, err4
+    mov     rdx, err4len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
 
 
 segment readable writable
@@ -1437,6 +1534,9 @@ err2len     =   $ - err2
 
 err3        db  "do without while"
 err3len     =   $ - err3
+
+err4        db  "else without if"
+err4len     =   $ - err4
 
 ; LANGUAGE KEYWORDS
 KEY_DUP         db  "dup"
@@ -1546,6 +1646,9 @@ ASM_2DROP_LEN   =   $ - ASM_2DROP
 
 ASM_IF          db  "; -- IF --", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr" ; insert jmp label
 ASM_IF_LEN      =   $ - ASM_IF
+
+ASM_ELSE        db  "; -- ELSE --", 10, "jmp .Addr"
+ASM_ELSE_LEN    =   $ - ASM_ELSE
 
 ASM_WHILE       db  "; -- WHILE --", 10, ".Addr"
 ASM_WHILE_LEN   =   $ - ASM_WHILE
