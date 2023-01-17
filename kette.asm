@@ -16,27 +16,38 @@ tkGreater   = 8
 tkLesser    = 9
 tkGEqual    = 10
 tkLEqual    = 11
+tkAnd       = 12
+tkOr        = 13
 
-tkPush      = 12
-tkDump      = 13
-tkDup       = 14
-tkSwap      = 15
-tkRot       = 16
-tkOver      = 17
-tkDrop      = 18
+tkPushInt   = 14
+tkDump      = 15
+tkDup       = 16
+tkSwap      = 17
+tkRot       = 18
+tkOver      = 19
+tkDrop      = 20
 
-tk2Dup      = 19
-tk2Swap     = 20
-tk2Over     = 21
-tk2Drop     = 22
+tk2Dup      = 21
+tk2Swap     = 22
+tk2Over     = 23
+tk2Drop     = 24
 
-tkIf        = 23
-tkElse      = 24
-tkWhile     = 25
-tkDo        = 26
-tkProc      = 27
-tkEnd       = 28
+tkIf        = 25
+tkElse      = 26
+tkWhile     = 27
+tkDo        = 28
+tkProc      = 29
+tkEnd       = 30
 
+tkPushStr   = 31
+
+tkSys0      = 32
+tkSys1      = 33
+tkSys2      = 34
+tkSys3      = 35
+tkSys4      = 36
+tkSys5      = 37
+tkSys6      = 38
 
 tkExit      = 255
 
@@ -71,6 +82,26 @@ entry $
     push    rax ; ptr token mem | rbp - 48
     push    rdi ; len token mem | rbp - 56
 
+    ; allocate memory for strings
+    mov     rdi, 1024
+    call    map_memory
+
+    push    rax ; ptr string mem | rbp - 64
+    push    rdi ; len string mem | rbp - 72
+    xor     rbx, rbx
+    push    rbx ; offset string mem | rbp - 80
+    mov     rbx, 1
+    push    rbx ; string & proc counter | rbp - 88
+
+    ; allocate memory for procs
+    mov     rdi, 1024
+    call    map_memory
+
+    push    rax ; ptr proc mem | rbp - 96
+    push    rdi ; len proc mem | rbp - 104
+    xor     rbx, rbx
+    push    rbx ; offset proc mem | rbp - 112
+
     xor     rbx, rbx ; tokenspace offset
     .token_loop:
         mov     rdi, r12
@@ -81,7 +112,7 @@ entry $
         jz      .exit_token_loop;
 
         mov     r13, rax ; ptr sub string
-        mov     r14, rdx ; len sub string
+        mov     r14, rdx
         
         mov     r15, -1
         ; checking for symbol
@@ -136,12 +167,44 @@ entry $
         cmp     WORD [r13], "<="
         cmovz   r15, rax
 
+        cmp     BYTE [r13], 34  ; strings are already "checked" in word generation
+        jz      .finalize_string
 
         ; if opcode was set (so not -1), jump to symbol handling
         ; if opcode was not set, continue checking what it is
         cmp     r15, -1
         jnz     .finalize_symbol
         jmp     .no_symbol
+
+    
+        .finalize_string:
+        mov     rdi, [rbp - 48]
+        mov     BYTE [rdi + rbx], tkPushStr
+        mov     eax, DWORD [rbp - 24]
+        mov     r8d, DWORD [rbp - 32]
+        mov     DWORD [rdi + rbx + 1], eax
+        mov     DWORD [rdi + rbx + 5], r8d
+        ; skip "
+        mov     r8, r14
+        lea     rax, [r13]
+
+        mov     rcx, [rbp - 64] ; ptr string mem
+        mov     rdx, [rbp - 104] ; string mem offset
+        
+        mov     rdx, QWORD [rbp - 80]
+        mov     r10, QWORD [rbp - 88]
+        
+        mov     QWORD [rdi + rbx + 9], r10 ; string id
+
+        mov     QWORD [rcx + rdx], r10 ; string id
+        mov     QWORD [rcx + rdx + 8], r8 ; string len
+        mov     QWORD [rcx + rdx + 16], rax ; ptr string
+        
+        add     QWORD [rbp - 80], 24
+        inc     QWORD [rbp - 88]
+
+        jmp     .end_word
+
 
         .finalize_symbol:
         mov     rdi, [rbp - 48] ; ptr of token memory
@@ -228,6 +291,24 @@ entry $
         cmovz   r15, rax
         jz      .finalize_keyword_simple
 
+        mov     rdi, r13
+        lea     rsi, [KEY_AND]
+        mov     rdx, KEY_AND_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkAnd
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_OR]
+        mov     rdx, KEY_OR_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkOr
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
         
         mov     rdi, r13
         lea     rsi, [KEY_IF]
@@ -274,6 +355,76 @@ entry $
         mov     r15, rax
         jz      .finalize_keyword_end
 
+        mov     rdi, r13
+        lea     rsi, [KEY_SYS0]
+        mov     rdx, KEY_SYS0_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSys0
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+
+        mov     rdi, r13
+        lea     rsi, [KEY_SYS1]
+        mov     rdx, KEY_SYS1_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSys1
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+
+        mov     rdi, r13
+        lea     rsi, [KEY_SYS2]
+        mov     rdx, KEY_SYS2_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSys2
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+
+        mov     rdi, r13
+        lea     rsi, [KEY_SYS3]
+        mov     rdx, KEY_SYS3_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSys3
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+
+        mov     rdi, r13
+        lea     rsi, [KEY_SYS4]
+        mov     rdx, KEY_SYS4_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSys4
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+
+        mov     rdi, r13
+        lea     rsi, [KEY_SYS5]
+        mov     rdx, KEY_SYS5_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSys5
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+
+        mov     rdi, r13
+        lea     rsi, [KEY_SYS6]
+        mov     rdx, KEY_SYS6_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rax, tkSys6
+        mov     r15, rax
+        jz      .finalize_keyword_simple
+
+
 
         jmp     .no_keyword
         
@@ -309,6 +460,7 @@ entry $
         jmp     .end_word
 
         .no_keyword:
+
         
         ; handle number
 
@@ -330,7 +482,7 @@ entry $
         
         .finish_number:
             mov     rdi, [rbp - 48] ; ptr of token memory
-            mov     BYTE [rdi + rbx], tkPush
+            mov     BYTE [rdi + rbx], tkPushInt
             mov     r8d, DWORD [rbp - 24]
             mov     r9d, DWORD [rbp - 32]
             mov     DWORD [rdi + rbx + 1], r8d
@@ -338,23 +490,12 @@ entry $
             mov     QWORD [rdi + rbx + 9], rax
 
         .end_word:
-
         add     rbx, 32  
         jmp     .token_loop
 
     .exit_token_loop:
-   
-
-    ;   [rbp -  8] ptr | origin file (required for close)
-    ;   [rbp - 16] len | origin file (junk)
-
-    ;   [rbp - 24] line counter (junk)
-    ;   [rbp - 32] col counter  (junk)
-    ;   [rbp - 40] offset       (junk)
-
-    ;   [rbp - 48] ptr | token mem
-    ;   [rbp - 56] len | token mem
-
+  
+    
     ;   rbx -> r12 | token mem effective len
     mov     r12, rbx
  
@@ -369,7 +510,7 @@ entry $
         cmp     rbx, r12
         jz      .loop_cross_reference_stop 
    
-        cmp     BYTE [r13 + rbx], tkPush
+        cmp     BYTE [r13 + rbx], tkPushInt
         jz      .cross_reference_skip_push
 
         cmp     BYTE [r13 + rbx], tkIf
@@ -479,15 +620,17 @@ entry $
     ; allocate memory
     mov     rdi, 2048
     call    map_memory
-    push    rax ; [rbp - 64] = ptr | output file
-    push    rdi ; [rbp - 72] = len | output file
+    push    rax ; [rbp - 120] = ptr | output file
+    push    rdi ; [rbp - 128] = len | output file
  
     xor     rbx, rbx ; tokenspace offset
     xor     r15, r15 ; output file offset 
     
+    push    rbx ; [rbp - 136] = string data offset | 24 bytes aligned
+    
     mov     rax, [rbp - 48]
     lea     r13, [rax]  ; token file ptr
-    mov     rax, [rbp - 64]
+    mov     rax, [rbp - 120]
     lea     r14, [rax]  ; output file ptr
 
     lea     rdi, [r14 + r15]
@@ -497,8 +640,8 @@ entry $
     add     r15, ASM_HEADER_LEN
 
     .loop_bytecode_to_asm:
-        cmp     BYTE [r13 + rbx], tkPush
-        jz      .output_push
+        cmp     BYTE [r13 + rbx], tkPushInt
+        jz      .output_push_int
         
         cmp     BYTE [r13 + rbx], tkAdd
         jz      .output_add
@@ -533,6 +676,12 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkLEqual
         jz      .output_lesser_equal
+
+        cmp     BYTE [r13 + rbx], tkAnd
+        jz      .output_and
+
+        cmp     BYTE [r13 + rbx], tkOr
+        jz      .output_or
 
 
         cmp     BYTE [r13 + rbx], tkDump
@@ -577,6 +726,23 @@ entry $
         cmp     BYTE [r13 + rbx], tkEnd
         jz      .output_end
 
+        cmp     BYTE [r13 + rbx], tkSys0
+        jz      .output_syscall0
+        cmp     BYTE [r13 + rbx], tkSys1
+        jz      .output_syscall1
+        cmp     BYTE [r13 + rbx], tkSys2
+        jz      .output_syscall2
+        cmp     BYTE [r13 + rbx], tkSys3
+        jz      .output_syscall3
+        cmp     BYTE [r13 + rbx], tkSys4
+        jz      .output_syscall4
+        cmp     BYTE [r13 + rbx], tkSys5
+        jz      .output_syscall5
+        cmp     BYTE [r13 + rbx], tkSys6
+        jz      .output_syscall6
+
+        cmp     BYTE [r13 + rbx], tkPushStr
+        jz      .output_push_string
 
         cmp     BYTE [r13 + rbx], tkNoOp
         jz      .output_jmp_end ; skip no ops
@@ -585,7 +751,7 @@ entry $
         ; could also detect wrong offsetting
         jmp     .output_jmp_end
 
-        .output_push:
+        .output_push_int:
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_PUSH
             mov     rdx, ASM_PUSH_LEN
@@ -606,6 +772,52 @@ entry $
             mov     BYTE [r14 + r15], 10
             add     r15, 1
             jmp    .output_jmp_end
+        
+        .output_push_string:
+            ; - 64  = string mem
+            ; layout: 8 byte id, 8 byte len, 8 byte ptr | 24 len
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PUSH_STR
+            mov     rdx, ASM_PUSH_STR_LEN
+            call    mem_move
+            add     r15, ASM_PUSH_STR_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 9]
+            call    uitds
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PUSH_STR_L1
+            mov     rdx, ASM_PUSH_STR_L1_LEN
+            call    mem_move
+            add     r15, ASM_PUSH_STR_L1_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 9]
+            call    uitds
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PUSH_STR_L2
+            mov     rdx, ASM_PUSH_STR_L2_LEN
+            call    mem_move
+            add     r15, ASM_PUSH_STR_L2_LEN
+            
+            jmp     .output_jmp_end
 
         .output_add:
             lea     rdi, [r14 + r15]
@@ -694,6 +906,23 @@ entry $
             call    mem_move
             add     r15, ASM_LEQUAL_LEN
             jmp    .output_jmp_end
+       
+       .output_and:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_AND
+            mov     rdx, ASM_AND_LEN
+            call    mem_move
+            add     r15, ASM_AND_LEN
+            jmp    .output_jmp_end
+
+       .output_or:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_OR
+            mov     rdx, ASM_OR_LEN
+            call    mem_move
+            add     r15, ASM_OR_LEN
+            jmp    .output_jmp_end
+
 
         .output_dump:
             lea     rdi, [r14 + r15]
@@ -981,6 +1210,66 @@ entry $
 
                 jmp     .output_jmp_end
  
+        .output_syscall0:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SYS0
+            mov     rdx, ASM_SYS0_LEN
+            call    mem_move
+            add     r15, ASM_SYS0_LEN
+            jmp     .output_jmp_end
+     
+        .output_syscall1:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SYS1
+            mov     rdx, ASM_SYS1_LEN
+            call    mem_move
+            add     r15, ASM_SYS1_LEN
+            jmp     .output_jmp_end
+
+
+        .output_syscall2:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SYS2
+            mov     rdx, ASM_SYS2_LEN
+            call    mem_move
+            add     r15, ASM_SYS2_LEN
+            jmp     .output_jmp_end
+
+
+        .output_syscall3:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SYS3
+            mov     rdx, ASM_SYS3_LEN
+            call    mem_move
+            add     r15, ASM_SYS3_LEN
+            jmp     .output_jmp_end
+
+
+        .output_syscall4:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SYS4
+            mov     rdx, ASM_SYS4_LEN
+            call    mem_move
+            add     r15, ASM_SYS4_LEN
+            jmp     .output_jmp_end
+
+
+        .output_syscall5:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SYS5
+            mov     rdx, ASM_SYS5_LEN
+            call    mem_move
+            add     r15, ASM_SYS5_LEN
+            jmp     .output_jmp_end
+ 
+        .output_syscall6:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_SYS6
+            mov     rdx, ASM_SYS6_LEN
+            call    mem_move
+            add     r15, ASM_SYS6_LEN
+            jmp     .output_jmp_end
+
 
         .output_jmp_end:
         add rbx, 32
@@ -994,6 +1283,112 @@ entry $
     call    mem_move
     add     r15, ASM_ENDING_LEN
 
+    lea     rdi, [r14 + r15]
+    mov     rsi, ASM_CONST_DATA_SECTION
+    mov     rdx, ASM_CONST_DATA_SECTION_LEN
+    call    mem_move
+    add     r15, ASM_CONST_DATA_SECTION_LEN
+
+    ; CONST DATA:
+    xor     rbx, rbx ; counter inc in 24
+    mov     rax, [rbp - 64] ; ptr string mem
+    lea     r13, [rax]
+    .loop_add_const_strings:
+        cmp     rbx, QWORD [rbp - 80]
+        jz      .exit_loop_add_const_strings
+        
+        lea     rdi, [r14 + r15]
+        mov     rsi, ASM_CONST_STR
+        mov     rdx, ASM_CONST_STR_LEN
+        call    mem_move
+        add     r15, ASM_CONST_STR_LEN
+    
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx]
+        call    uitds
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r15, rdx
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, ASM_DB_WORD
+        mov     rdx, ASM_DB_WORD_LEN
+        call    mem_move
+        add     r15, ASM_DB_WORD_LEN
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, [r13 + rbx + 16]
+        mov     rdx, [r13 + rbx + 8]
+        call    mem_move
+        add     r15, [r13 + rbx + 8]
+        
+        lea     rdi, [r14 + r15]
+        mov     rsi, newline
+        mov     rdx, 1
+        call    mem_move
+        add     r15, 1
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, ASM_CONST_STR
+        mov     rdx, ASM_CONST_STR_LEN
+        call    mem_move
+        add     r15, ASM_CONST_STR_LEN
+        
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx]
+        call    uitds
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r15, rdx
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, ASM_CONST_STR_L
+        mov     rdx, ASM_CONST_STR_L_LEN
+        call    mem_move
+        add     r15, ASM_CONST_STR_L_LEN
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, ASM_EQ_LEN_WORD
+        mov     rdx, ASM_EQ_LEN_WORD_LEN
+        call    mem_move
+        add     r15, ASM_EQ_LEN_WORD_LEN
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, ASM_CONST_STR
+        mov     rdx, ASM_CONST_STR_LEN
+        call    mem_move
+        add     r15, ASM_CONST_STR_LEN
+
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx]
+        call    uitds
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r15, rdx
+
+        lea     rdi, [r14 + r15]
+        mov     rsi, newline
+        mov     rdx, 1
+        call    mem_move
+        add     r15, 1
+
+        add     rbx, 24
+        jmp .loop_add_const_strings
+    .exit_loop_add_const_strings:
+
+
     mov     rdi, file2
     mov     rsi, O_WRONLY or O_CREAT or O_TRUNC
     xor     rdx, rdx
@@ -1002,7 +1397,7 @@ entry $
 
     ; write assembly
     mov     rdi, rax
-    mov     rsi, [rbp - 64]
+    mov     rsi, [rbp - 120]
     mov     rdx, r15
     mov     rax, SYS_WRITE
     syscall
@@ -1563,6 +1958,12 @@ KEY_2SWAP_LEN   =   $ - KEY_2SWAP
 KEY_2DROP       db  "2drop"
 KEY_2DROP_LEN   =   $ - KEY_2DROP
 
+KEY_AND         db  "and"
+KEY_AND_LEN     =   $ - KEY_AND
+
+KEY_OR          db  "or"
+KEY_OR_LEN      =   $ - KEY_OR
+
 KEY_IF          db  "if"
 KEY_IF_LEN      =   $ - KEY_IF
 
@@ -1577,6 +1978,30 @@ KEY_WHILE_LEN   =   $ - KEY_WHILE
 
 KEY_DO          db  "do"
 KEY_DO_LEN      =   $ - KEY_DO
+
+KEY_PROC        db  "proc"
+KEY_PROC_LEN    =   $ - KEY_PROC
+
+KEY_SYS0        db  "syscall0"
+KEY_SYS0_LEN    =   $ - KEY_SYS0
+
+KEY_SYS1        db  "syscall1"
+KEY_SYS1_LEN    =   $ - KEY_SYS1
+
+KEY_SYS2        db  "syscall2"
+KEY_SYS2_LEN    =   $ - KEY_SYS2
+
+KEY_SYS3        db  "syscall3"
+KEY_SYS3_LEN    =   $ - KEY_SYS3
+
+KEY_SYS4        db  "syscall4"
+KEY_SYS4_LEN    =   $ - KEY_SYS4
+
+KEY_SYS5        db  "syscall5"
+KEY_SYS5_LEN    =   $ - KEY_SYS5
+
+KEY_SYS6        db  "syscall6"
+KEY_SYS6_LEN    =   $ - KEY_SYS6
 
 ; ASSEMBLY OUTPUT
 ASM_PUSH        db  "; -- PUSH --", 10, "push " ; insert number here
@@ -1611,10 +2036,17 @@ ASM_LESSER      db  "; -- LESSER --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx
 ASM_LESSER_LEN  =   $ - ASM_LESSER
 
 ASM_GEQUAL      db  "; -- GREATER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovge rcx, rdx", 10, "push rcx", 10
-ASM_GEQUAL_LEN   =   $ - ASM_GEQUAL
+ASM_GEQUAL_LEN  =   $ - ASM_GEQUAL
 
 ASM_LEQUAL       db  "; -- LESSER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovle rcx, rdx", 10, "push rcx", 10
-ASM_LEQUAL_LEN   =   $ - ASM_LEQUAL
+ASM_LEQUAL_LEN  =   $ - ASM_LEQUAL
+
+ASM_AND         db  "; -- AND --", 10, "pop rbx", 10, "pop rax", 10, "mov rcx, 1", 10, "mov rdx, 0", 10, "and rax, rbx", 10, "cmp rax, 0", 10, "cmovnz rdx, rcx", 10, "push rdx", 10
+ASM_AND_LEN     =   $ - ASM_AND
+
+ASM_OR          db  "; -- OR --", 10, "pop rbx", 10, "pop rax", 10, "mov rcx, 1", 10, "mov rdx, 0", 10, "or rax, rbx", 10, "cmp rax, 0", 10, "cmovnz, rdx, rdx", 10, "push rdx", 10
+ASM_OR_LEN      =   $ - ASM_OR
+
 
 ASM_DUMP        db  "; -- DUMP --", 10, "pop rdi", 10, "call dump_uint", 10
 ASM_DUMP_LEN    =   $ - ASM_DUMP
@@ -1668,6 +2100,49 @@ ASM_END_AEND_LEN=   $ - ASM_END_AEND
 ASM_END_JMP     db  "jmp .Addr"
 ASM_END_JMP_LEN =   $ - ASM_END_JMP
 
+
+; SYSCALLS (WORKS GOOD ENOUGH FOR NOW)
+ASM_SYS0        db  "; -- SYSCALL0 --", 10, "pop rax", 10, "syscall", 10, "push rax", 10
+ASM_SYS0_LEN    =   $ - ASM_SYS0
+
+ASM_SYS1        db  "; -- SYSCALL1 --", 10, "pop rax", 10, "pop rdi", 10, "syscall", 10, "push rax", 10
+ASM_SYS1_LEN    =   $ - ASM_SYS1
+
+ASM_SYS2        db  "; -- SYSCALL2 --", 10, "pop rax", 10, "pop rdi", 10, "pop rsi", 10, "syscall", 10, "push rax", 10
+ASM_SYS2_LEN    =   $ - ASM_SYS2
+
+ASM_SYS3        db  "; -- SYSCALL3 --", 10, "pop rax", 10, "pop rdi", 10, "pop rsi",  10, "pop rdx", 10, "syscall", 10, "push rax", 10
+ASM_SYS3_LEN    =   $ - ASM_SYS3
+
+ASM_SYS4        db  "; -- SYSCALL4 --", 10, "pop rax", 10, "pop rdi", 10, "pop rsi", 10, "pop rdx", 10, "pop r10", 10, "syscall", 10, "push rax", 10
+ASM_SYS4_LEN    =   $ - ASM_SYS4
+
+ASM_SYS5        db  "; -- SYSCALL5 --", 10, "pop rax", 10, "pop rdi", 10, "pop rsi", 10, "pop rdx", 10, "pop r10", 10, "pop r8", 10, "syscall", 10, "push rax", 10
+ASM_SYS5_LEN    =   $ - ASM_SYS5
+
+ASM_SYS6        db  "; -- SYSCALL6 --", 10, "pop rax", 10, "pop rdi", 10, "pop rsi", 10, "pop rdx", 10, "pop r10",10, "pop r8", 10, "pop r9", 10, "syscall", 10, "push rax", 10
+ASM_SYS6_LEN    =   $ - ASM_SYS6
+
+ASM_PUSH_STR        db  "; -- PUSH STRING --", 10, "push CONST_STRING_"
+ASM_PUSH_STR_LEN    =   $ - ASM_PUSH_STR
+
+ASM_PUSH_STR_L1     db  10, "push CONST_STRING_"
+ASM_PUSH_STR_L1_LEN =   $ - ASM_PUSH_STR_L1
+ASM_PUSH_STR_L2     db  "_LEN", 10
+ASM_PUSH_STR_L2_LEN =   $ - ASM_PUSH_STR_L2
+
+ASM_CONST_STR       db  "CONST_STRING_"
+ASM_CONST_STR_LEN   =   $ - ASM_CONST_STR
+
+ASM_CONST_STR_L     db  "_LEN"
+ASM_CONST_STR_L_LEN =   $ - ASM_CONST_STR_L
+
+ASM_DB_WORD         db  " db "
+ASM_DB_WORD_LEN     =   $ - ASM_DB_WORD
+
+ASM_EQ_LEN_WORD     db  " = $ - "
+ASM_EQ_LEN_WORD_LEN =   $ - ASM_EQ_LEN_WORD
+
 ASM_HEADER      db "format ELF64 executable 3", 10
     db 10
     db "segment readable executable", 10
@@ -1709,12 +2184,15 @@ ASM_HEADER      db "format ELF64 executable 3", 10
 
 ASM_HEADER_LEN = $ - ASM_HEADER
 
-
 ASM_ENDING db 10, "mov rdi, 0", 10
     db "mov rax, 60", 10
     db "syscall", 10
 
 ASM_ENDING_LEN = $ - ASM_ENDING
+
+
+ASM_CONST_DATA_SECTION         db  10, "; -- CONST DATA --", 10, "segment readable", 10, 10
+ASM_CONST_DATA_SECTION_LEN     =   $ - ASM_CONST_DATA_SECTION
 
 ; PRINTING
 newline     db 10
