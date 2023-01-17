@@ -39,7 +39,7 @@ entry $
 ; -- PUSH --
 push 100
 ; -- WHILE --
-.Addr0:
+.Addr1:
 ; -- DUP --
 pop rax
 push rax
@@ -57,7 +57,33 @@ push rcx
 ; -- DO --
 pop rax
 cmp rax, 0
-jz .Addr1
+jz .Addr2
+; -- DUP --
+pop rax
+push rax
+push rax
+; -- PUSH --
+push 2
+; -- MOD --
+pop rbx
+pop rax
+xor rdx, rdx
+div rbx
+push rdx
+; -- PUSH --
+push 0
+; -- EQUAL --
+pop rbx
+pop rax
+xor rcx, rcx
+cmp rax, rbx
+mov rdx, 1
+cmove rcx, rdx
+push rcx
+; -- IF --
+pop rax
+cmp rax, 0
+jz .Addr0
 ; -- DUP --
 pop rax
 push rax
@@ -65,6 +91,8 @@ push rax
 ; -- DUMP --
 pop rdi
 call dump_uint
+; -- END --
+.Addr0:
 ; -- PUSH --
 push 1
 ; -- SUB --
@@ -73,8 +101,8 @@ pop rax
 sub rax, rbx
 push rax
 ; -- END --
-jmp .Addr0
-.Addr1:
+jmp .Addr1
+.Addr2:
 
 mov rdi, 0
 mov rax, 60

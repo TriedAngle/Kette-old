@@ -1,4 +1,7 @@
 100 while dup 0 > do
-    dup .
+    dup 2 % 0 = if
+        dup .
+    end
     1 -
 end
+

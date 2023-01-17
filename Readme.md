@@ -1,26 +1,71 @@
 # Frozen Forth
 forth implementation in x64 assembly
 
-## 
-assembly =(compiler)=> forth =(interpreter) => common lisp =(compiler)=> ice
-## Notes
-### Token Format
-<bytes>
-1 = opcode (max: 256) 
-4 = line
-4 = char in line
-<...> data
-[add, sub, mul, div] = none
-[dump] = none
-[dup, 2dup, swap] = none
-[push] = 8 # number | address (TODO later)
-[if] = 8 | jump label index
-[end] = 17 | end subtype | jump label index | jump label 2
-[while] = 8
+## Features
+
+- [ ] if | TODO: else missing
+- [x] loops
+- [ ] procs
+- [ ] strings | NOTE: parsing done
+- [ ] command line arguments
+- [ ] types
+- [ ] typechecking
+- [ ] arrays
+- [ ] self hosted
+- [ ] proc options e.g. "inline"
+- [ ] multithreading
+- [ ] AArch64 Mac & Windows and x64 Windows backend
+
+
+## Compiler Design
+### 1. Lexing
+1. loop through input string
+2. return pointer to substring with length, skipping whitespaces
+3. while looping, increment line and col counter, reset col counter when newline is reached
+4. strings are parsed from " to ", keeping all newlines and spaces
+5. substrings are matched in order by string, keyword, number, "word" and converted to the token format
+
+#### Notes
+- Too large numbers and non closing " can be detected here
+- TODO: currently numbers are expected at the end -> change that and do symbols instead
+
+### 2. Token Format
+a single token is 32 bytes long and structured the following:
+1. [1b] token kind
+2. [4b] line
+3. [4b] column
+4. [23b] data
+
+#### Notes
+- index 9 may be used for subvariance that may be detected for some tokens later
+- some spaces are reused e.g. a do writes last while in it first which is then being changed to end later
+- most tokens are 9 bytes and 17 bytes long but for easier iteration they are all stretched to 32 bytes
+
+### Primitive-Cross-Referencing
+- references if with else and end
+- references while with do and end
+- references proc with end
+
+#### Notes
+- detects missing end, if and while
+
+### Symbol Cross-Referencing
+- references global variabls
+- references procedure calls
+
+#### Notes
+- detects missing symbols
+
+### Assembly Generation
+- generates the assembly for x64 linux
+- TODO: add assembly for Windows (probably only syscalls, or include Win32.h?)
+- TODO: Add AArch64 support
+
+
+## Assembly Notes
 
 ### SysV ABI
-
-Parameters:
+#### Parameters:
 1. rdi
 2. rsi
 3. rdx
@@ -32,24 +77,41 @@ Parameters:
 Return:
 1. rax
 2. rdx
+3. stack | preallocated in caller stack frame and passed as pointer
 
-Preserve:
-1. rbx
-2. rsp ; unusable 
-3. rbp ; unusable
-4. r12
-5. r13
-6. r14
-7. r15
+#### Preserve:
+- rbx
+- rsp | unusable, only for stack frames 
+- rbp | unusable, only for stack frames
+- rip | do not touch
+- r12
+- r13
+- r14
+- r15
 
-Whatever:
+#### Whatever:
 (Parameters and RCX)
-1. rax
-2. rdi
-3. rsi
-4. rdx
-5. rcx  
-6. r8
-7. r9
-8. r10
-9. r11
+- rax
+- rdi
+- rsi
+- rdx
+- rcx  
+- r8
+- r9
+- r10
+- r11
+
+### Linux
+#### Notes
+syscalls may override:
+- rcx | rip of syscall
+- r11 | RFLAGS
+
+#### Parameter Order
+1. rdi
+2. rsi
+3. rdx
+4. r10
+5. r18
+6. r9
+7. rax | which sycall

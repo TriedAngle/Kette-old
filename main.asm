@@ -33,7 +33,9 @@ tkIf        = 22
 tkElse      = 23
 tkWhile     = 24
 tkDo        = 25
-tkEnd       = 26
+tkProc      = 26
+tkEnd       = 27
+
 
 tkExit      = 255
 
@@ -62,7 +64,7 @@ entry $
 
     ; allocate memory for token loop
     ; start out with 128 bytes
-    mov     rdi, 128
+    mov     rdi, 1024
     call    map_memory
     
     push    rax ; ptr token mem | rbp - 48
@@ -147,7 +149,6 @@ entry $
         mov     r8d, DWORD [rbp - 32]
         mov     DWORD [rdi + rbx + 1], eax
         mov     DWORD [rdi + rbx + 5], r8d
-        add     rbx, 9
         jmp     .end_word
 
         .no_symbol:
@@ -274,7 +275,6 @@ entry $
         mov     r8d, DWORD [rbp - 32]
         mov     DWORD [rdi + rbx + 1], eax
         mov     DWORD [rdi + rbx + 5], r8d
-        add     rbx, 9
         jmp     .end_word   
  
         .finalize_keyword_control_flow:
@@ -285,7 +285,6 @@ entry $
         mov     DWORD [rdi + rbx + 1], r8d
         mov     DWORD [rdi + rbx + 5], r9d
         mov     QWORD [rdi + rbx + 9], 0
-        add     rbx, 17
         jmp     .end_word
 
         .finalize_keyword_end:
@@ -298,7 +297,6 @@ entry $
         mov     BYTE [rdi + rbx + 9], 0
         mov     QWORD [rdi + rbx + 10], 0
         mov     QWORD [rdi + rbx + 18], 0
-        add     rbx, 26
         jmp     .end_word
 
         .no_keyword:
@@ -329,11 +327,11 @@ entry $
             mov     DWORD [rdi + rbx + 1], r8d
             mov     DWORD [rdi + rbx + 5], r9d
             mov     QWORD [rdi + rbx + 9], rax
-            add     rbx, 17 
 
         .end_word:
- 
-        jmp .token_loop
+
+        add     rbx, 32  
+        jmp     .token_loop
 
     .exit_token_loop:
    
@@ -377,25 +375,20 @@ entry $
         cmp     BYTE [r13 + rbx], tkEnd
         jz      .cross_reference_end
 
-        add     rbx, 9 ; default size
-        jmp     .loop_cross_reference
-
+        jmp     .loop_cross_reference_end
 
         .cross_reference_skip_push:
-        add      rbx, 17
-        jmp      .loop_cross_reference
+        jmp      .loop_cross_reference_end
 
         .cross_reference_if:
         push    rbx
-        add     rbx, 17
         inc     r14
-        jmp     .loop_cross_reference
+        jmp     .loop_cross_reference_end
 
         .cross_reference_while:
         push    rbx
-        add     rbx, 17
         inc     r14
-        jmp     .loop_cross_reference
+        jmp     .loop_cross_reference_end
 
         .cross_reference_do:
         cmp     r14, 0
@@ -403,8 +396,7 @@ entry $
         pop     rax
         mov     QWORD [r13 + rbx + 9], rax ; write while in do, so it can be referenced in end
         push    rbx
-        add     rbx, 17
-        jmp     .loop_cross_reference ; r14 stays constant
+        jmp     .loop_cross_reference_end
 
         .cross_reference_end:
         cmp     r14, 0
@@ -419,10 +411,9 @@ entry $
             mov     QWORD [r13 + rax + 9], r15 
             mov     BYTE  [r13 + rbx + 9], varEndIf ;
             mov     QWORD [r13 + rbx + 10], r15
-            add     rbx, 26
             inc     r15
             dec     r14
-            jmp     .loop_cross_reference
+            jmp     .loop_cross_reference_end
         
         .cross_reference_end_do:
             ; rax = do
@@ -437,11 +428,14 @@ entry $
             mov     [r13 + rax + 9], r15 ; jmp end label
             mov     [r13 + rbx + 18], r15 ; end label
             
-            add     rbx, 26
             inc     r15
             dec     r14
-            jmp     .loop_cross_reference
+            jmp     .loop_cross_reference_end
     
+        .loop_cross_reference_end:
+        add     rbx, 32
+            
+        jmp     .loop_cross_reference
 
         
     .loop_cross_reference_stop:
@@ -449,6 +443,7 @@ entry $
 
     cmp     r14, 0
     jg     error_if_without_end
+
 
     ; allocate memory
     mov     rdi, 2048
@@ -562,8 +557,7 @@ entry $
         
             lea     rsi, [rsp]
             sub     rsp, 20
-            add     rbx, 9 ; op (1) + len & col (8)
-            mov     rdi, [r13 + rbx]
+            mov     rdi, [r13 + rbx + 9]
             call    uitds ; rdx = len
         
             lea     rdi, [r14 + r15]
@@ -571,7 +565,6 @@ entry $
             call    mem_move
             add     rsp, 20 ; reset stack
             add     r15, rdx
-            add     rbx, 8 ; number (8)
             
             mov     BYTE [r14 + r15], 10
             add     r15, 1
@@ -583,7 +576,6 @@ entry $
             mov     rdx, ASM_ADD_LEN
             call    mem_move
             add     r15, ASM_ADD_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
         .output_sub:
@@ -592,7 +584,6 @@ entry $
             mov     rdx, ASM_SUB_LEN
             call    mem_move
             add     r15, ASM_SUB_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
         .output_mul:
@@ -601,7 +592,6 @@ entry $
             mov     rdx, ASM_MUL_LEN
             call    mem_move
             add     r15, ASM_MUL_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
         .output_div:
@@ -610,7 +600,6 @@ entry $
             mov     rdx, ASM_DIV_LEN
             call    mem_move
             add     r15, ASM_DIV_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
         .output_mod:
@@ -619,7 +608,6 @@ entry $
             mov     rdx, ASM_MOD_LEN
             call    mem_move
             add     r15, ASM_MOD_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
         
         .output_modiv:
@@ -628,7 +616,6 @@ entry $
             mov     rdx, ASM_MODIV_LEN
             call    mem_move
             add     r15, ASM_MODIV_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
        .output_equal:
@@ -637,7 +624,6 @@ entry $
             mov     rdx, ASM_EQUAL_LEN
             call    mem_move
             add     r15, ASM_EQUAL_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
        .output_greater:
@@ -646,7 +632,6 @@ entry $
             mov     rdx, ASM_GREATER_LEN
             call    mem_move
             add     r15, ASM_GREATER_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
        .output_lesser:
@@ -655,7 +640,6 @@ entry $
             mov     rdx, ASM_LESSER_LEN
             call    mem_move
             add     r15, ASM_LESSER_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
        .output_greater_equal:
@@ -664,7 +648,6 @@ entry $
             mov     rdx, ASM_GEQUAL_LEN
             call    mem_move
             add     r15, ASM_GEQUAL_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
        .output_lesser_equal:
@@ -673,7 +656,6 @@ entry $
             mov     rdx, ASM_LEQUAL_LEN
             call    mem_move
             add     r15, ASM_LEQUAL_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
 
         .output_dump:
@@ -682,7 +664,6 @@ entry $
             mov     rdx, ASM_DUMP_LEN
             call    mem_move
             add     r15, ASM_DUMP_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
         
         .output_dup:
@@ -691,7 +672,6 @@ entry $
             mov     rdx, ASM_DUP_LEN
             call    mem_move
             add     r15, ASM_DUP_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
         
         .output_swap:
@@ -700,7 +680,6 @@ entry $
             mov     rdx, ASM_SWAP_LEN
             call    mem_move
             add     r15, ASM_SWAP_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
  
         .output_rot:
@@ -709,7 +688,6 @@ entry $
             mov     rdx, ASM_ROT_LEN
             call    mem_move
             add     r15, ASM_ROT_LEN
-            add     rbx, 9
             jmp    .output_jmp_end 
  
         .output_over:
@@ -718,7 +696,6 @@ entry $
             mov     rdx, ASM_OVER_LEN
             call    mem_move
             add     r15, ASM_OVER_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
  
         .output_drop:
@@ -727,7 +704,6 @@ entry $
             mov     rdx, ASM_DROP_LEN
             call    mem_move
             add     r15, ASM_DROP_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
  
         .output_2dup:
@@ -736,7 +712,6 @@ entry $
             mov     rdx, ASM_2DUP_LEN
             call    mem_move
             add     r15, ASM_2DUP_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
  
         .output_2swap:
@@ -745,7 +720,6 @@ entry $
             mov     rdx, ASM_2SWAP_LEN
             call    mem_move
             add     r15, ASM_2SWAP_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
  
         .output_2drop:
@@ -754,7 +728,6 @@ entry $
             mov     rdx, ASM_2SWAP_LEN
             call    mem_move
             add     r15, ASM_2SWAP_LEN
-            add     rbx, 9
             jmp    .output_jmp_end
  
         
@@ -767,15 +740,13 @@ entry $
 
             lea     rsi, [rsp]
             sub     rsp, 20
-            add     rbx, 9
-            mov     rdi, [r13 + rbx]
+            mov     rdi, [r13 + rbx + 9]
             call    uitds
             lea     rdi, [r14 + r15]
             mov     rsi, rax
             call    mem_move
             add     rsp, 20
             add     r15, rdx
-            add     rbx, 8
 
             mov     BYTE [r14 + r15], 10
             add     r15, 1
@@ -790,15 +761,13 @@ entry $
 
             lea     rsi, [rsp]
             sub     rsp, 20
-            add     rbx, 9
-            mov     rdi, [r13 + rbx]
+            mov     rdi, [r13 + rbx + 9]
             call    uitds
             lea     rdi, [r14 + r15]
             mov     rsi, rax
             call    mem_move
             add     rsp, 20
             add     r15, rdx
-            add     rbx, 8
             
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_END_AEND
@@ -818,15 +787,13 @@ entry $
 
             lea     rsi, [rsp]
             sub     rsp, 20
-            add     rbx, 9
-            mov     rdi, [r13 + rbx]
+            mov     rdi, [r13 + rbx + 9]
             call    uitds
             lea     rdi, [r14 + r15]
             mov     rsi, rax
             call    mem_move
             add     rsp, 20
             add     r15, rdx
-            add     rbx, 8
 
             mov     BYTE [r14 + r15], 10
             add     r15, 1
@@ -870,7 +837,6 @@ entry $
                 call    mem_move
                 add     r15, ASM_END_AEND_LEN
 
-                add     rbx, 26
                 jmp     .output_jmp_end
 
             .output_end_var_do:
@@ -926,12 +892,11 @@ entry $
                 call    mem_move
                 add     r15, ASM_END_AEND_LEN
 
-                add     rbx, 26
                 jmp     .output_jmp_end
  
 
         .output_jmp_end:
-
+        add rbx, 32
         cmp rbx, r12
         jnz .loop_bytecode_to_asm
     
@@ -1152,6 +1117,17 @@ map_memory:
 ;   rax
 unmap_memory:
     mov     rax, SYS_MUNMAP
+    syscall
+    ret
+
+
+; input
+;   rdi: addr    = ptr buffer
+;   rsi: old len = u64
+;   rdx: new len = u64
+remap_memory:
+    mov     r10, MREMAP_MAYMOVE
+    mov     rax, SYS_MREMAP
     syscall
     ret
 
