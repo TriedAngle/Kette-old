@@ -118,13 +118,8 @@ pop rax
 cmp rax, 0
 jz .Addr0
 ; -- PUSH STRING --
-push CONST_STRING_1
 push CONST_STRING_1_LEN
-; -- SWAP --
-pop rax
-pop rbx
-push rax
-push rbx
+push CONST_STRING_1
 ; -- PUSH --
 push 1
 ; -- PUSH --
@@ -174,13 +169,8 @@ pop rax
 cmp rax, 0
 jz .Addr1
 ; -- PUSH STRING --
-push CONST_STRING_2
 push CONST_STRING_2_LEN
-; -- SWAP --
-pop rax
-pop rbx
-push rax
-push rbx
+push CONST_STRING_2
 ; -- PUSH --
 push 1
 ; -- PUSH --
@@ -229,13 +219,8 @@ pop rax
 cmp rax, 0
 jz .Addr2
 ; -- PUSH STRING --
-push CONST_STRING_3
 push CONST_STRING_3_LEN
-; -- SWAP --
-pop rax
-pop rbx
-push rax
-push rbx
+push CONST_STRING_3
 ; -- PUSH --
 push 1
 ; -- PUSH --

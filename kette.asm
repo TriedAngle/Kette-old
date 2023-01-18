@@ -777,6 +777,41 @@ entry $
             ; - 64  = string mem
             ; layout: 8 byte id, 8 byte len, 8 byte ptr | 24 len
             lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PUSH_STR_L
+            mov     rdx, ASM_PUSH_STR_L_LEN
+            call    mem_move
+            add     r15, ASM_PUSH_STR_L_LEN
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PUSH_STR
+            mov     rdx, ASM_PUSH_STR_LEN
+            call    mem_move
+            add     r15, ASM_PUSH_STR_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 9]
+            call    uitds
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_CONST_STR_L
+            mov     rdx, ASM_CONST_STR_L_LEN
+            call    mem_move
+            add     r15, ASM_CONST_STR_L_LEN
+            
+            lea     rdi, [r14 + r15]
+            mov     rsi, newline
+            mov     rdx, 1
+            call    mem_move
+            add     r15, 1
+
+            lea     rdi, [r14 + r15]
             mov     rsi, ASM_PUSH_STR
             mov     rdx, ASM_PUSH_STR_LEN
             call    mem_move
@@ -794,29 +829,12 @@ entry $
             add     r15, rdx
 
             lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PUSH_STR_L1
-            mov     rdx, ASM_PUSH_STR_L1_LEN
+            mov     rsi, newline
+            mov     rdx, 1
             call    mem_move
-            add     r15, ASM_PUSH_STR_L1_LEN
+            add     r15, 1
 
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PUSH_STR_L2
-            mov     rdx, ASM_PUSH_STR_L2_LEN
-            call    mem_move
-            add     r15, ASM_PUSH_STR_L2_LEN
-            
+           
             jmp     .output_jmp_end
 
         .output_add:
@@ -2123,13 +2141,11 @@ ASM_SYS5_LEN    =   $ - ASM_SYS5
 ASM_SYS6        db  "; -- SYSCALL6 --", 10, "pop rax", 10, "pop rdi", 10, "pop rsi", 10, "pop rdx", 10, "pop r10",10, "pop r8", 10, "pop r9", 10, "syscall", 10, "push rax", 10
 ASM_SYS6_LEN    =   $ - ASM_SYS6
 
-ASM_PUSH_STR        db  "; -- PUSH STRING --", 10, "push CONST_STRING_"
-ASM_PUSH_STR_LEN    =   $ - ASM_PUSH_STR
+ASM_PUSH_STR_L      db  "; -- PUSH STRING --", 10
+ASM_PUSH_STR_L_LEN  =   $ - ASM_PUSH_STR_L
 
-ASM_PUSH_STR_L1     db  10, "push CONST_STRING_"
-ASM_PUSH_STR_L1_LEN =   $ - ASM_PUSH_STR_L1
-ASM_PUSH_STR_L2     db  "_LEN", 10
-ASM_PUSH_STR_L2_LEN =   $ - ASM_PUSH_STR_L2
+ASM_PUSH_STR        db  "push CONST_STRING_"
+ASM_PUSH_STR_LEN    =   $ - ASM_PUSH_STR
 
 ASM_CONST_STR       db  "CONST_STRING_"
 ASM_CONST_STR_LEN   =   $ - ASM_CONST_STR

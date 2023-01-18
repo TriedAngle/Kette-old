@@ -1,9 +1,9 @@
 15 while dup 0 > do
     dup 3 % 0 = over 5 % 0 = and if
-        "FizzBuzz" swap 1 1 syscall3 drop 0 .
+        "FizzBuzz" 1 1 syscall3 drop 0 . 
     else
-        dup 3 % 0 = if "Fizz" swap 1 1 syscall3 drop 0 . end
-        dup 5 % 0 = if "Buzz" swap 1 1 syscall3 drop 0 . end
+        dup 3 % 0 = if "Fizz" 1 1 syscall3 drop 0 . end
+        dup 5 % 0 = if "Buzz" 1 1 syscall3 drop 0 . end
     end
     dup .
     1 - 

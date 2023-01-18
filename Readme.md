@@ -6,7 +6,7 @@ Concatenative Stack-Based Programming Language
 - [x] if else
 - [x] loops
 - [ ] procs
-- [ ] strings | NOTE: parsing done
+- [ ] strings | TODO: \n at least
 - [ ] comments
 - [ ] single error handling | multi error handling will be added in self host
 - [ ] command line arguments & refactor to make them useful (requires fork or clone and exec?)
