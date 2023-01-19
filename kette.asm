@@ -33,21 +33,24 @@ tk2Over     = 23
 tk2Drop     = 24
 
 tkIf        = 25
-tkElse      = 26
-tkWhile     = 27
-tkDo        = 28
-tkProc      = 29
-tkEnd       = 30
+tkThen      = 26
+tkElse      = 27
+tkWhile     = 28
+tkDo        = 29
+tkProc      = 30
+tkIn        = 31
+tkEnd       = 32
 
-tkPushStr   = 31
+tkIdent     = 33
+tkPushStr   = 34
 
-tkSys0      = 32
-tkSys1      = 33
-tkSys2      = 34
-tkSys3      = 35
-tkSys4      = 36
-tkSys5      = 37
-tkSys6      = 38
+tkSys0      = 35
+tkSys1      = 36
+tkSys2      = 37
+tkSys3      = 38
+tkSys4      = 39
+tkSys5      = 40
+tkSys6      = 41
 
 tkExit      = 255
 
@@ -224,8 +227,7 @@ entry $
         mov     rdx, KEY_DUP_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkDup
-        cmovz   r15, rax
+        mov     r15, tkDup
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -233,8 +235,7 @@ entry $
         mov     rdx, KEY_SWAP_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSwap
-        cmovz   r15, rax
+        mov     r15, tkSwap
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -242,8 +243,7 @@ entry $
         mov     rdx, KEY_ROT_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkRot
-        cmovz   r15, rax
+        mov     r15, tkRot
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -251,8 +251,7 @@ entry $
         mov     rdx, KEY_OVER_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkOver
-        cmovz   r15, rax
+        mov     r15, tkOver
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -260,8 +259,7 @@ entry $
         mov     rdx, KEY_DROP_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkDrop
-        cmovz   r15, rax
+        mov     r15, tkDrop
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -269,8 +267,7 @@ entry $
         mov     rdx, KEY_2DUP_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tk2Dup
-        cmovz   r15, rax
+        mov     r15, tk2Dup
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -278,8 +275,7 @@ entry $
         mov     rdx, KEY_2SWAP_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tk2Swap
-        cmovz   r15, rax
+        mov     r15, tk2Swap
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -287,8 +283,7 @@ entry $
         mov     rdx, KEY_2DROP_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tk2Drop
-        cmovz   r15, rax
+        mov     r15, tk2Drop
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -296,8 +291,7 @@ entry $
         mov     rdx, KEY_AND_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkAnd
-        mov     r15, rax
+        mov     r15, tkAnd
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
@@ -305,126 +299,121 @@ entry $
         mov     rdx, KEY_OR_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkOr
-        mov     r15, rax
+        mov     r15, tkOr
         jz      .finalize_keyword_simple
-
         
         mov     rdi, r13
         lea     rsi, [KEY_IF]
         mov     rdx, KEY_IF_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkIf
-        mov     r15, rax
-        jz      .finalize_keyword_control_flow
+        mov     r15, tkIf
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_THEN]
+        mov     rdx, KEY_THEN_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     r15, tkThen
+        jz      .finalize_keyword_simple
 
         mov     rdi, r13
         lea     rsi, [KEY_ELSE]
         mov     rdx, KEY_ELSE_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkElse
-        mov     r15, rax
-        jz      .finalize_keyword_control_flow
+        mov     r15, tkElse
+        jz      .finalize_keyword_simple
 
         mov     rdi, r13
         lea     rsi, [KEY_WHILE]
         mov     rdx, KEY_WHILE_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkWhile
-        mov     r15, rax
-        jz      .finalize_keyword_control_flow
+        mov     r15, tkWhile
+        jz      .finalize_keyword_simple
 
         mov     rdi, r13
         lea     rsi, [KEY_DO]
         mov     rdx, KEY_DO_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkDo
-        mov     r15, rax
-        jz      .finalize_keyword_control_flow
+        mov     r15, tkDo
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
+        lea     rsi, [KEY_PROC]
+        mov     rdx, KEY_PROC_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     r15, tkProc
+        jz      .finalize_keyword_simple
 
         mov     rdi, r13
         lea     rsi, [KEY_END]
         mov     rdx, KEY_END_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkEnd
-        mov     r15, rax
-        jz      .finalize_keyword_end
+        mov     r15, tkEnd
+        jz      .finalize_keyword_simple
 
         mov     rdi, r13
         lea     rsi, [KEY_SYS0]
         mov     rdx, KEY_SYS0_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSys0
-        mov     r15, rax
+        mov     r15, tkSys0
         jz      .finalize_keyword_simple
-
 
         mov     rdi, r13
         lea     rsi, [KEY_SYS1]
         mov     rdx, KEY_SYS1_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSys1
-        mov     r15, rax
+        mov     r15, tkSys1
         jz      .finalize_keyword_simple
-
 
         mov     rdi, r13
         lea     rsi, [KEY_SYS2]
         mov     rdx, KEY_SYS2_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSys2
-        mov     r15, rax
+        mov     r15, tkSys2
         jz      .finalize_keyword_simple
-
 
         mov     rdi, r13
         lea     rsi, [KEY_SYS3]
         mov     rdx, KEY_SYS3_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSys3
-        mov     r15, rax
+        mov     r15, tkSys3
         jz      .finalize_keyword_simple
-
 
         mov     rdi, r13
         lea     rsi, [KEY_SYS4]
         mov     rdx, KEY_SYS4_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSys4
-        mov     r15, rax
+        mov     r15, tkSys4
         jz      .finalize_keyword_simple
-
 
         mov     rdi, r13
         lea     rsi, [KEY_SYS5]
         mov     rdx, KEY_SYS5_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSys5
-        mov     r15, rax
+        mov     r15, tkSys5
         jz      .finalize_keyword_simple
-
 
         mov     rdi, r13
         lea     rsi, [KEY_SYS6]
         mov     rdx, KEY_SYS6_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rax, tkSys6
-        mov     r15, rax
+        mov     r15, tkSys6
         jz      .finalize_keyword_simple
-
-
+        
 
         jmp     .no_keyword
         
@@ -435,35 +424,45 @@ entry $
         mov     r8d, DWORD [rbp - 32]
         mov     DWORD [rdi + rbx + 1], eax
         mov     DWORD [rdi + rbx + 5], r8d
-        jmp     .end_word   
- 
-        .finalize_keyword_control_flow:
-        mov     rdi, [rbp - 48]
-        mov     BYTE [rdi + rbx], r15b
-        mov     r8d, DWORD [rbp - 24]
-        mov     r9d, DWORD [rbp - 32]
-        mov     DWORD [rdi + rbx + 1], r8d
-        mov     DWORD [rdi + rbx + 5], r9d
         mov     QWORD [rdi + rbx + 9], 0
-        jmp     .end_word
-
-        .finalize_keyword_end:
-        mov     rdi, [rbp - 48]
-        mov     BYTE [rdi + rbx], r15b
-        mov     r8d, DWORD [rbp - 24]
-        mov     r9d, DWORD [rbp - 32]
-        mov     DWORD [rdi + rbx + 1], r8d
-        mov     DWORD [rdi + rbx + 5], r9d
-        mov     BYTE [rdi + rbx + 9], 0
-        mov     QWORD [rdi + rbx + 10], 0
-        mov     QWORD [rdi + rbx + 18], 0
-        jmp     .end_word
+        mov     QWORD [rdi + rbx + 17], 0
+        mov     WORD [rdi + rbx + 25], 0
+        jmp     .end_word   
 
         .no_keyword:
 
         
-        ; handle number
+        ; check if number
+        xor     rcx, rcx
+        xor     rax, rax
+        .check_if_number_loop:
+            cmp     BYTE [r13 + rcx], "0"
+            jl      .parse_not_number
 
+            cmp     BYTE [r13 + rcx], "_"
+            jz      .check_if_number_loop_next
+
+            cmp     BYTE [r13 + rcx], "9"
+            jg      .parse_not_number
+
+            .check_if_number_loop_next:
+            inc     rcx
+            cmp     rcx, r14
+            jz      .parse_number
+            jmp     .check_if_number_loop
+
+        .parse_not_number:
+        mov     rdi, [rbp - 48]
+        mov     BYTE [rdi + rbx], tkIdent
+        mov     r8d, DWORD [rbp - 24]
+        mov     r9d, DWORD [rbp - 32]
+        mov     DWORD [rdi + rbx + 1], r8d
+        mov     DWORD [rdi + rbx + 5], r9d
+        mov     QWORD [rdi + rbx + 9], r13 ; ptr start
+        mov     QWORD [rdi + rbx + 17], r14 ; length
+        jmp     .end_word
+
+        .parse_number:
         xor     rax, rax ; number
         xor     rcx, rcx ; digit counter
         xor     rdi, rdi ; ascii translation 
@@ -510,9 +509,6 @@ entry $
         cmp     rbx, r12
         jz      .loop_cross_reference_stop 
    
-        cmp     BYTE [r13 + rbx], tkPushInt
-        jz      .cross_reference_skip_push
-
         cmp     BYTE [r13 + rbx], tkIf
         jz      .cross_reference_if
         
@@ -529,9 +525,6 @@ entry $
         jz      .cross_reference_end
 
         jmp     .loop_cross_reference_end
-
-        .cross_reference_skip_push:
-        jmp      .loop_cross_reference_end
 
         .cross_reference_if:
         push    rbx
@@ -1985,6 +1978,9 @@ KEY_OR_LEN      =   $ - KEY_OR
 KEY_IF          db  "if"
 KEY_IF_LEN      =   $ - KEY_IF
 
+KEY_THEN        db  "then"
+KEY_THEN_LEN    =   $ - KEY_THEN
+
 KEY_ELSE        db  "else"
 KEY_ELSE_LEN    =   $ - KEY_ELSE
 
@@ -1999,6 +1995,9 @@ KEY_DO_LEN      =   $ - KEY_DO
 
 KEY_PROC        db  "proc"
 KEY_PROC_LEN    =   $ - KEY_PROC
+
+KEY_IN          db  "in"
+KEY_IN_LEN      =   $ - KEY_IN
 
 KEY_SYS0        db  "syscall0"
 KEY_SYS0_LEN    =   $ - KEY_SYS0
