@@ -122,6 +122,13 @@ entry $
         ; cmov does not support consts lol, x86-64 moment!
         ; rax is used as an intermediate register bc of that
         ; this looks a bit dirty, but avoids branching :)
+
+        ; checking length is a smol hacc but it works for now XD
+        ; if no check, identifiers that start with those symbols
+        ; will be wrongfully parsed as that symbol
+        cmp     r14, 1
+        jnz     .check_symbol_len2
+
         mov     rax, tkAdd
         cmp     BYTE [r13], "+"
         cmovz   r15, rax
@@ -142,10 +149,6 @@ entry $
         cmp     BYTE [r13], "%"
         cmovz   r15, rax
         
-        mov     rax, tkModiv
-        cmp     WORD [r13], "/%"
-        cmovz   r15, rax
-
         mov     rax, tkDump
         cmp     BYTE [r13], "."
         cmovz   r15, rax
@@ -161,6 +164,10 @@ entry $
         mov     rax, tkLesser
         cmp     BYTE [r13], "<"
         cmovz   r15, rax
+        
+        .check_symbol_len2:
+        cmp     r14, 2
+        jnz     .not_symbol_len3
 
         mov     rax, tkGEqual
         cmp     WORD [r13], ">="
@@ -169,6 +176,12 @@ entry $
         mov     rax, tkLEqual
         cmp     WORD [r13], "<="
         cmovz   r15, rax
+
+        mov     rax, tkModiv
+        cmp     WORD [r13], "/%"
+        cmovz   r15, rax
+
+        .not_symbol_len3:
 
         cmp     BYTE [r13], 34  ; strings are already "checked" in word generation
         jz      .finalize_string
@@ -351,6 +364,14 @@ entry $
         jz      .finalize_keyword_simple
 
         mov     rdi, r13
+        lea     rsi, [KEY_IN]
+        mov     rdx, KEY_IN_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     r15, tkIn
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r13
         lea     rsi, [KEY_END]
         mov     rdx, KEY_END_LEN
         call    mem_cmp
@@ -508,7 +529,7 @@ entry $
     .loop_cross_reference:
         cmp     rbx, r12
         jz      .loop_cross_reference_stop 
-   
+
         cmp     BYTE [r13 + rbx], tkIf
         jz      .cross_reference_if
         
@@ -521,6 +542,12 @@ entry $
         cmp     BYTE [r13 + rbx], tkDo
         jz      .cross_reference_do
         
+        cmp     BYTE [r13 + rbx], tkProc
+        jz      .cross_reference_proc
+
+        cmp     BYTE [r13 + rbx], tkIn
+        jz      .cross_reference_in
+
         cmp     BYTE [r13 + rbx], tkEnd
         jz      .cross_reference_end
 
@@ -554,6 +581,18 @@ entry $
         mov     QWORD [r13 + rbx + 9], rax ; write while in do, so it can be referenced in end
         push    rbx
         jmp     .loop_cross_reference_end
+
+        
+        .cross_reference_proc:
+            cmp     BYTE [r13 + rbx + 32], tkIdent
+            jnz     error_no_ident_after_proc
+            push    rbx
+            call print_a
+            jmp     .loop_cross_reference_end
+
+        .cross_reference_in:
+            call print_b
+            jmp     .loop_cross_reference_end
 
         .cross_reference_end:
         cmp     r14, 0
@@ -1922,6 +1961,18 @@ error_else_without_if:
     mov     rax, SYS_EXIT
     syscall
 
+error_no_ident_after_proc:
+    mov     rdi, STDOUT
+    mov     rsi, err5
+    mov     rdx, err5len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
+
 
 segment readable writable
 buf         rb  80
@@ -1943,6 +1994,9 @@ err3len     =   $ - err3
 
 err4        db  "else without if"
 err4len     =   $ - err4
+
+err5        db  "expected identifier"
+err5len     =   $ - err5
 
 ; LANGUAGE KEYWORDS
 KEY_DUP         db  "dup"
