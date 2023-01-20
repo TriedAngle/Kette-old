@@ -1,5 +1,5 @@
-if 69 420 > then
-    20 .
-else
-    40 .
-end
+proc hello in 1 . end
+
+69 .
+hello
+420 .

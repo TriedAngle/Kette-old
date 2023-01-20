@@ -36,38 +36,25 @@ add     rsp, 40
 ret
 
 entry $
-; -- IF --
+; -- PROC DECLERATION --
+jmp .Addr0
 ; -- PUSH --
-push 69
-; -- PUSH --
-push 420
-; -- GREATER --
-pop rbx
-pop rax
-xor rcx, rcx
-cmp rax, rbx
-mov rdx, 1
-cmovg rcx, rdx
-push rcx
-; -- THEN -- 
-pop rax
-cmp rax, 0
-jz .Addr0
-; -- PUSH --
-push 20
-; -- DUMP --
-pop rdi
-call dump_uint
-; -- ELSE --
-jmp .Addr1
-.Addr0:
-; -- PUSH --
-push 40
+push 1
 ; -- DUMP --
 pop rdi
 call dump_uint
 ; -- END --
-.Addr1:
+.Addr0:
+; -- PUSH --
+push 69
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- PUSH --
+push 420
+; -- DUMP --
+pop rdi
+call dump_uint
 
 mov rdi, 0
 mov rax, 60
@@ -76,3 +63,9 @@ syscall
 ; -- CONST DATA --
 segment readable
 
+; -- MUTABLE DATA --
+segment readable writable
+
+; -- RETURN STACK --
+RETURN_STACK rq 512
+RETURN_STACK_INDEX rq 1

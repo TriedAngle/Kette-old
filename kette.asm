@@ -38,19 +38,20 @@ tkElse      = 27
 tkWhile     = 28
 tkDo        = 29
 tkProc      = 30
-tkIn        = 31
-tkEnd       = 32
+tkProcSkip  = 31
+tkIn        = 32
+tkEnd       = 33
 
-tkIdent     = 33
-tkPushStr   = 34
+tkIdent     = 34
+tkPushStr   = 35
 
-tkSys0      = 35
-tkSys1      = 36
-tkSys2      = 37
-tkSys3      = 38
-tkSys4      = 39
-tkSys5      = 40
-tkSys6      = 41
+tkSys0      = 36
+tkSys1      = 37
+tkSys2      = 38
+tkSys3      = 39
+tkSys4      = 40
+tkSys5      = 41
+tkSys6      = 42
 
 tkExit      = 255
 
@@ -601,11 +602,12 @@ entry $
             cmp     BYTE [r13 + rbx + 32], tkIdent
             jnz     error_no_ident_after_proc
             push    rbx
+            inc     r14
             jmp     .loop_cross_reference_end
 
         .cross_reference_in:
             cmp     r14, 0
-            jnz     error_in_without_proc
+            je      error_in_without_proc
             pop     rax
             cmp     BYTE [r13 + rax], tkProc
             jnz     error_in_without_proc
@@ -619,6 +621,7 @@ entry $
         ; pop the last if and write current jump counter in both
         pop     rax
         dec     r14
+    
 
         cmp     BYTE [r13 + rax], tkThen
         jz      .cross_reference_end_then
@@ -646,7 +649,7 @@ entry $
 
             mov     QWORD [r13 + r9 + 9], rbx ; proc -> end
             mov     BYTE  [r13 + rbx + 9], varEndProc
-            mov     QWORD [r13 + rbx + 10], r15 ; end address
+            mov     QWORD [r13 + rbx + 10], r15 ; end addr
             mov     QWORD [r13 + rbx + 18], r8 ; end -> in
             inc     r15
             jmp     .loop_cross_reference_end
@@ -795,6 +798,9 @@ entry $
         cmp     BYTE [r13 + rbx], tkDo
         jz      .output_do
         
+        cmp     BYTE [r13 + rbx], tkProc
+        jz      .output_proc
+
         cmp     BYTE [r13 + rbx], tkEnd
         jz      .output_end
 
@@ -1141,10 +1147,10 @@ entry $
             
             ; jump for if
             lea     rdi, [r14 + r15]
-            mov     rsi, ASM_END_ADDR
-            mov     rdx, ASM_END_ADDR_LEN
+            mov     rsi, ASM_ADDR
+            mov     rdx, ASM_ADDR_LEN
             call    mem_move
-            add     r15, ASM_END_ADDR_LEN
+            add     r15, ASM_ADDR_LEN
             
             lea     rsi, [rsp]
             sub     rsp, 20
@@ -1158,10 +1164,10 @@ entry $
             
 
             lea     rdi, [r14 + r15]
-            mov     rsi, ASM_END_AEND
-            mov     rdx, ASM_END_AEND_LEN
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
             call    mem_move
-            add     r15, ASM_END_AEND_LEN
+            add     r15, ASM_COLON_LEN
             
             jmp     .output_jmp_end
             
@@ -1184,10 +1190,10 @@ entry $
             add     r15, rdx
             
             lea     rdi, [r14 + r15]
-            mov     rsi, ASM_END_AEND
-            mov     rdx, ASM_END_AEND_LEN
+            mov     rsi, ASM_ADDR
+            mov     rdx, ASM_ADDR_LEN
             call    mem_move
-            add     r15, ASM_END_AEND_LEN
+            add     r15, ASM_ADDR_LEN
 
             jmp     .output_jmp_end
 
@@ -1213,6 +1219,37 @@ entry $
             add     r15, 1
             jmp     .output_jmp_end
 
+
+        .output_proc:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PROC_DEC
+            mov     rdx, ASM_PROC_DEC_LEN
+            call    mem_move
+            add     r15, ASM_PROC_DEC_LEN
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_JMP
+            mov     rdx, ASM_JMP_LEN
+            call    mem_move
+            add     r15, ASM_JMP_LEN
+            
+            mov     r8, [r13 + rbx + 9] ; end
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + r8 + 10] ; addr end
+            call    uitds
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+
+            mov     BYTE [r14 + r15], 10
+            add     r15, 1
+            jmp     .output_jmp_end
+
+
         .output_end:
             cmp     BYTE [r13 + rbx + 9], varEndIf
             jz      .output_end_var_if
@@ -1229,10 +1266,10 @@ entry $
                 add     r15, ASM_END_L_LEN
 
                 lea     rdi, [r14 + r15]
-                mov     rsi, ASM_END_ADDR
-                mov     rdx, ASM_END_ADDR_LEN
+                mov     rsi, ASM_ADDR
+                mov     rdx, ASM_ADDR_LEN
                 call    mem_move
-                add     r15, ASM_END_ADDR_LEN
+                add     r15, ASM_ADDR_LEN
 
                 lea     rsi, [rsp]
                 sub     rsp, 20
@@ -1246,10 +1283,10 @@ entry $
                 add     r15, rdx
                 
                 lea     rdi, [r14 + r15]
-                mov     rsi, ASM_END_AEND
-                mov     rdx, ASM_END_AEND_LEN
+                mov     rsi, ASM_COLON
+                mov     rdx, ASM_COLON_LEN
                 call    mem_move
-                add     r15, ASM_END_AEND_LEN
+                add     r15, ASM_COLON_LEN
 
                 jmp     .output_jmp_end
 
@@ -1261,10 +1298,10 @@ entry $
                 add     r15, ASM_END_L_LEN
 
                 lea     rdi, [r14 + r15]
-                mov     rsi, ASM_END_JMP
-                mov     rdx, ASM_END_JMP_LEN
+                mov     rsi, ASM_JMP
+                mov     rdx, ASM_JMP_LEN
                 call    mem_move
-                add     r15, ASM_END_JMP_LEN
+                add     r15, ASM_JMP_LEN
                 
                 lea     rsi, [rsp]
                 sub     rsp, 20
@@ -1284,10 +1321,10 @@ entry $
                 add     r15, 1
 
                 lea     rdi, [r14 + r15]
-                mov     rsi, ASM_END_ADDR
-                mov     rdx, ASM_END_ADDR_LEN
+                mov     rsi, ASM_ADDR
+                mov     rdx, ASM_ADDR_LEN
                 call    mem_move
-                add     r15, ASM_END_ADDR_LEN
+                add     r15, ASM_ADDR_LEN
                 
                 lea     rsi, [rsp]
                 sub     rsp, 20
@@ -1301,10 +1338,10 @@ entry $
                 add     r15, rdx
                 
                 lea     rdi, [r14 + r15]
-                mov     rsi, ASM_END_AEND
-                mov     rdx, ASM_END_AEND_LEN
+                mov     rsi, ASM_COLON
+                mov     rdx, ASM_COLON_LEN
                 call    mem_move
-                add     r15, ASM_END_AEND_LEN
+                add     r15, ASM_COLON_LEN
 
                 jmp     .output_jmp_end
  
@@ -1485,6 +1522,20 @@ entry $
         add     rbx, 24
         jmp .loop_add_const_strings
     .exit_loop_add_const_strings:
+
+    ; MUTABLE DATA
+    lea     rdi, [r14 + r15]
+    mov     rsi, ASM_MUTABLE_DATA_SECTION
+    mov     rdx, ASM_MUTABLE_DATA_SECTION_LEN
+    call    mem_move
+    add     r15, ASM_MUTABLE_DATA_SECTION_LEN
+
+
+    lea     rdi, [r14 + r15]
+    mov     rsi, ASM_RETURN_STACK
+    mov     rdx, ASM_RETURN_STACK_LEN
+    call    mem_move
+    add     r15, ASM_RETURN_STACK_LEN
 
 
     mov     rdi, file2
@@ -2252,14 +2303,21 @@ ASM_DO_LEN      =   $ - ASM_DO
 ASM_END_L       db  "; -- END --", 10
 ASM_END_L_LEN   =   $ - ASM_END_L
 
-ASM_END_ADDR    db  ".Addr"
-ASM_END_ADDR_LEN=   $ - ASM_END_ADDR
+ASM_ADDR        db  ".Addr"
+ASM_ADDR_LEN    =   $ - ASM_ADDR
 
-ASM_END_AEND    db  ":", 10
-ASM_END_AEND_LEN=   $ - ASM_END_AEND
+ASM_COLON       db  ":", 10
+ASM_COLON_LEN=   $ - ASM_COLON
 
-ASM_END_JMP     db  "jmp .Addr"
-ASM_END_JMP_LEN =   $ - ASM_END_JMP
+ASM_JMP     db  "jmp .Addr"
+ASM_JMP_LEN =   $ - ASM_JMP
+
+
+ASM_PROC_DEC        db  "; -- PROC DECLERATION --", 10
+ASM_PROC_DEC_LEN    =   $ - ASM_PROC_DEC
+
+ASM_PROC_L          db  ".Proc", 10
+ASM_PROC_L_LEN      =   $ - ASM_PROC_L
 
 
 ; SYSCALLS (WORKS GOOD ENOUGH FOR NOW)
@@ -2350,8 +2408,15 @@ ASM_ENDING db 10, "mov rdi, 0", 10
 ASM_ENDING_LEN = $ - ASM_ENDING
 
 
-ASM_CONST_DATA_SECTION         db  10, "; -- CONST DATA --", 10, "segment readable", 10, 10
-ASM_CONST_DATA_SECTION_LEN     =   $ - ASM_CONST_DATA_SECTION
+ASM_CONST_DATA_SECTION          db  10, "; -- CONST DATA --", 10, "segment readable", 10, 10
+ASM_CONST_DATA_SECTION_LEN      =   $ - ASM_CONST_DATA_SECTION
+
+
+ASM_MUTABLE_DATA_SECTION        db  "; -- MUTABLE DATA --", 10, "segment readable writable", 10, 10
+ASM_MUTABLE_DATA_SECTION_LEN    =   $ - ASM_MUTABLE_DATA_SECTION
+
+ASM_RETURN_STACK        db  "; -- RETURN STACK --", 10, "RETURN_STACK rq 512", 10, "RETURN_STACK_INDEX rq 1", 10
+ASM_RETURN_STACK_LEN    =   $ - ASM_RETURN_STACK
 
 ; PRINTING
 newline     db 10
