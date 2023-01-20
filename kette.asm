@@ -57,6 +57,7 @@ tkExit      = 255
 
 varEndIf    = 1
 varEndDo    = 2
+varEndProc  = 3
 
 segment readable executable
 
@@ -532,7 +533,10 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkIf
         jz      .cross_reference_if
-        
+       
+        cmp     BYTE [r13 + rbx], tkThen
+        jz      .cross_reference_then
+
         cmp     BYTE [r13 + rbx], tkElse
         jz      .cross_reference_else
 
@@ -556,6 +560,16 @@ entry $
         .cross_reference_if:
         push    rbx
         inc     r14
+        jmp     .loop_cross_reference_end
+
+        
+        .cross_reference_then:
+        cmp     r14, 0
+        je      error_then_without_if
+        pop     rax
+        cmp     BYTE [r13 + rax], tkIf
+        jnz     error_then_without_if
+        push    rbx
         jmp     .loop_cross_reference_end
 
         .cross_reference_else:
@@ -587,11 +601,16 @@ entry $
             cmp     BYTE [r13 + rbx + 32], tkIdent
             jnz     error_no_ident_after_proc
             push    rbx
-            call print_a
             jmp     .loop_cross_reference_end
 
         .cross_reference_in:
-            call print_b
+            cmp     r14, 0
+            jnz     error_in_without_proc
+            pop     rax
+            cmp     BYTE [r13 + rax], tkProc
+            jnz     error_in_without_proc
+            mov     QWORD [r13 + rbx + 9], rax
+            push    rbx
             jmp     .loop_cross_reference_end
 
         .cross_reference_end:
@@ -601,12 +620,18 @@ entry $
         pop     rax
         dec     r14
 
+        cmp     BYTE [r13 + rax], tkThen
+        jz      .cross_reference_end_then
         cmp     BYTE [r13 + rax], tkDo
         jz      .cross_reference_end_do
         cmp     BYTE [r13 + rax], tkElse
         jz      .cross_reference_end_else
+        cmp     BYTE [r13 + rax], tkIn
+        jz      .cross_reference_procedure
         
-        .cross_reference_end_if:
+        jmp     error_illegal
+        
+        .cross_reference_end_then:
             ; handle if
             mov     QWORD [r13 + rax + 9], r15 
             mov     BYTE  [r13 + rbx + 9], varEndIf ;
@@ -614,6 +639,18 @@ entry $
             inc     r15
             jmp     .loop_cross_reference_end
         
+        .cross_reference_procedure:
+            mov     r8, [r13 + rax]     ; in entry
+            mov     r9, [r13 + r8 + 9]  ; proc entry
+                ;   rbx                 ; end entry
+
+            mov     QWORD [r13 + r9 + 9], rbx ; proc -> end
+            mov     BYTE  [r13 + rbx + 9], varEndProc
+            mov     QWORD [r13 + rbx + 10], r15 ; end address
+            mov     QWORD [r13 + rbx + 18], r8 ; end -> in
+            inc     r15
+            jmp     .loop_cross_reference_end
+
         .cross_reference_end_do:
             ; rax = do
             ; rdi = while
@@ -745,6 +782,9 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkIf
         jz      .output_if
+
+        cmp     BYTE [r13 + rbx], tkThen
+        jz      .output_then
 
         cmp     BYTE [r13 + rbx], tkElse
         jz      .output_else
@@ -1054,6 +1094,15 @@ entry $
             call    mem_move
             add     r15, ASM_IF_LEN
 
+            jmp     .output_jmp_end
+        
+        .output_then:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_THEN
+            mov     rdx, ASM_THEN_LEN
+            call    mem_move
+            add     r15, ASM_THEN_LEN
+
             lea     rsi, [rsp]
             sub     rsp, 20
             mov     rdi, [r13 + rbx + 9]
@@ -1067,8 +1116,7 @@ entry $
             mov     BYTE [r14 + r15], 10
             add     r15, 1
             jmp     .output_jmp_end
-        
-
+            
         .output_else:
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_ELSE
@@ -1939,6 +1987,17 @@ error_if_without_end:
     mov     rax, SYS_EXIT
     syscall
 
+error_then_without_if:
+    mov     rdi, STDOUT
+    mov     rsi, err7
+    mov     rdx, err7len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
 error_do_without_while:
     mov     rdi, STDOUT
     mov     rsi, err3
@@ -1972,7 +2031,27 @@ error_no_ident_after_proc:
     mov     rax, SYS_EXIT
     syscall
 
+error_in_without_proc:
+    mov     rdi, STDOUT
+    mov     rsi, err6
+    mov     rdx, err6len
+    mov     rax, SYS_WRITE
+    syscall
 
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
+error_illegal:
+    mov     rdi, STDOUT
+    mov     rsi, errminus1
+    mov     rdx, errminus1len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
 
 segment readable writable
 buf         rb  80
@@ -1992,12 +2071,20 @@ err2len     =   $ - err2
 err3        db  "do without while"
 err3len     =   $ - err3
 
-err4        db  "else without if"
+err4        db  "else without then"
 err4len     =   $ - err4
 
 err5        db  "expected identifier"
 err5len     =   $ - err5
 
+err6        db  "expected proc & symbol before in"
+err6len     =   $ - err6
+
+err7        db  "then without if"
+err7len     =   $ - err7
+
+errminus1   db  "illegal error LOL, this is probably a parser error"
+errminus1len=   $ - errminus1
 ; LANGUAGE KEYWORDS
 KEY_DUP         db  "dup"
 KEY_DUP_LEN     =   $ - KEY_DUP
@@ -2147,8 +2234,11 @@ ASM_2SWAP_LEN   =   $ - ASM_2SWAP
 ASM_2DROP       db  "; -- 2DROP --", 10, "pop rax", 10, "pop rax", 10, "xor rax, rax", 10
 ASM_2DROP_LEN   =   $ - ASM_2DROP
 
-ASM_IF          db  "; -- IF --", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr" ; insert jmp label
+ASM_IF          db  "; -- IF --", 10 ; only debug label
 ASM_IF_LEN      =   $ - ASM_IF
+
+ASM_THEN        db  "; -- THEN -- ", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr" ; insert jmp label 
+ASM_THEN_LEN    =   $ - ASM_THEN
 
 ASM_ELSE        db  "; -- ELSE --", 10, "jmp .Addr"
 ASM_ELSE_LEN    =   $ - ASM_ELSE

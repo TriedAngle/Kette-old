@@ -1,12 +1,5 @@
-proc %@ in 5 . end
-
-15 while dup 0 > do
-    dup 3 % 0 = over 5 % 0 = and if
-        "FizzBuzz" 1 1 syscall3 drop 0 . 
-    else
-        dup 3 % 0 = if "Fizz" 1 1 syscall3 drop 0 . end
-        dup 5 % 0 = if "Buzz" 1 1 syscall3 drop 0 . end
-    end
-    dup .
-    1 - 
+if 69 420 > then
+    20 .
+else
+    40 .
 end
