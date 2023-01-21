@@ -36,25 +36,115 @@ add     rsp, 40
 ret
 
 entry $
+; -- STARTUP -- 
+mov rax, RETURN_STACK_END
+mov [RETURN_STACK_PTR], rax
+
 ; -- PROC DECLERATION --
-jmp .Addr0
-; -- PUSH --
-push 1
-; -- DUMP --
-pop rdi
-call dump_uint
-; -- END --
-.Addr0:
+; - skip -
+jmp _Addr0
+_Proc0:
+; - prepare -
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; - body -
 ; -- PUSH --
 push 69
 ; -- DUMP --
 pop rdi
 call dump_uint
+; -- PROC END --
+; - return - 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+ret
+; - skip -
+_Addr0:
+; -- PROC DECLERATION --
+; - skip -
+jmp _Addr1
+_Proc1:
+; - prepare -
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; - body -
 ; -- PUSH --
 push 420
 ; -- DUMP --
 pop rdi
 call dump_uint
+; -- PROC END --
+; - return - 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+ret
+; - skip -
+_Addr1:
+; -- PROC DECLERATION --
+; - skip -
+jmp _Addr2
+_Proc2:
+; - prepare -
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; - body -
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc0
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc1
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; -- PUSH --
+push 1
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- PROC END --
+; - return - 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+ret
+; - skip -
+_Addr2:
+; -- PUSH --
+push 666
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc0
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; -- PUSH --
+push 666
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc1
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; -- PUSH --
+push 666
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc2
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
 
 mov rdi, 0
 mov rax, 60
@@ -67,5 +157,6 @@ segment readable
 segment readable writable
 
 ; -- RETURN STACK --
+RETURN_STACK_PTR rq 1
 RETURN_STACK rq 512
-RETURN_STACK_INDEX rq 1
+RETURN_STACK_END:

@@ -38,20 +38,19 @@ tkElse      = 27
 tkWhile     = 28
 tkDo        = 29
 tkProc      = 30
-tkProcSkip  = 31
-tkIn        = 32
-tkEnd       = 33
+tkIn        = 31
+tkEnd       = 32
 
-tkIdent     = 34
-tkPushStr   = 35
+tkIdent     = 33
+tkPushStr   = 34
 
-tkSys0      = 36
-tkSys1      = 37
-tkSys2      = 38
-tkSys3      = 39
-tkSys4      = 40
-tkSys5      = 41
-tkSys6      = 42
+tkSys0      = 35
+tkSys1      = 36
+tkSys2      = 37
+tkSys3      = 38
+tkSys4      = 39
+tkSys5      = 40
+tkSys6      = 41
 
 tkExit      = 255
 
@@ -59,6 +58,9 @@ tkExit      = 255
 varEndIf    = 1
 varEndDo    = 2
 varEndProc  = 3
+
+varIdentIgnore  = 1
+varIdentProc    = 2
 
 segment readable executable
 
@@ -118,7 +120,7 @@ entry $
 
         mov     r13, rax ; ptr sub string
         mov     r14, rdx
-        
+       
         mov     r15, -1
         ; checking for symbol
         ; cmov does not support consts lol, x86-64 moment!
@@ -450,6 +452,7 @@ entry $
         mov     QWORD [rdi + rbx + 9], 0
         mov     QWORD [rdi + rbx + 17], 0
         mov     WORD [rdi + rbx + 25], 0
+
         jmp     .end_word   
 
         .no_keyword:
@@ -481,8 +484,10 @@ entry $
         mov     r9d, DWORD [rbp - 32]
         mov     DWORD [rdi + rbx + 1], r8d
         mov     DWORD [rdi + rbx + 5], r9d
-        mov     QWORD [rdi + rbx + 9], r13 ; ptr start
-        mov     QWORD [rdi + rbx + 17], r14 ; length
+        mov     BYTE  [rdi + rbx + 9], 0
+        mov     QWORD [rdi + rbx + 10], r13 ; ptr start
+        mov     QWORD [rdi + rbx + 18], r14 ; length
+        
         jmp     .end_word
 
         .parse_number:
@@ -520,6 +525,19 @@ entry $
     
     ;   rbx -> r12 | token mem effective len
     mov     r12, rbx
+
+    mov     rdi, file1
+    mov     rsi, O_WRONLY or O_CREAT
+    xor     rdx, rdx
+    mov     rax, SYS_OPEN
+    syscall
+
+    mov     rdi, rax
+    mov     rsi, [rbp - 48]
+    mov     rdx, r12
+    mov     rax, SYS_WRITE
+    syscall
+
  
     mov     rax, [rbp - 48]
     lea     r13, [rax]  ; token file ptr
@@ -531,6 +549,10 @@ entry $
     .loop_cross_reference:
         cmp     rbx, r12
         jz      .loop_cross_reference_stop 
+
+
+        cmp     BYTE [r13 + rbx], tkIdent
+        jz      .loop_cross_reference_end
 
         cmp     BYTE [r13 + rbx], tkIf
         jz      .cross_reference_if
@@ -603,6 +625,10 @@ entry $
             jnz     error_no_ident_after_proc
             push    rbx
             inc     r14
+
+            ; ignore name in code gen
+            mov     BYTE [r13 + rbx + 41], varIdentIgnore
+
             jmp     .loop_cross_reference_end
 
         .cross_reference_in:
@@ -611,8 +637,10 @@ entry $
             pop     rax
             cmp     BYTE [r13 + rax], tkProc
             jnz     error_in_without_proc
-            mov     QWORD [r13 + rbx + 9], rax
+            
+            mov     QWORD [r13 + rbx + 9], rax ; move proc in in
             push    rbx
+
             jmp     .loop_cross_reference_end
 
         .cross_reference_end:
@@ -621,7 +649,6 @@ entry $
         ; pop the last if and write current jump counter in both
         pop     rax
         dec     r14
-    
 
         cmp     BYTE [r13 + rax], tkThen
         jz      .cross_reference_end_then
@@ -630,7 +657,7 @@ entry $
         cmp     BYTE [r13 + rax], tkElse
         jz      .cross_reference_end_else
         cmp     BYTE [r13 + rax], tkIn
-        jz      .cross_reference_procedure
+        jz      .cross_reference_end_procedure
         
         jmp     error_illegal
         
@@ -642,15 +669,26 @@ entry $
             inc     r15
             jmp     .loop_cross_reference_end
         
-        .cross_reference_procedure:
-            mov     r8, [r13 + rax]     ; in entry
-            mov     r9, [r13 + r8 + 9]  ; proc entry
+        .cross_reference_end_procedure:
+            mov     r9, [r13 + rax + 9]  ; proc entry
                 ;   rbx                 ; end entry
-
-            mov     QWORD [r13 + r9 + 9], rbx ; proc -> end
+             
+            mov     QWORD [r13 + r9 + 9], r15
             mov     BYTE  [r13 + rbx + 9], varEndProc
             mov     QWORD [r13 + rbx + 10], r15 ; end addr
-            mov     QWORD [r13 + rbx + 18], r8 ; end -> in
+            
+            lea     r10, [r13 + r9 + 32] ; identifier
+           
+            mov     r11, [rbp - 96] ; proc mem
+            mov     r8, [rbp - 112] ; proc offset
+
+            mov     QWORD [r11 + r8], r15
+            mov     rax, QWORD [r10 + 10]
+            mov     QWORD [r11 + r8 + 8 ], rax
+            mov     rax, QWORD [r10 + 18]
+            mov     QWORD [r11 + r8 + 16], rax
+
+            add     QWORD [rbp - 112], 32
             inc     r15
             jmp     .loop_cross_reference_end
 
@@ -677,9 +715,9 @@ entry $
             inc     r15
             jmp     .loop_cross_reference_end
     
+
         .loop_cross_reference_end:
-        add     rbx, 32
-            
+        add     rbx, 32   
         jmp     .loop_cross_reference
 
         
@@ -688,6 +726,54 @@ entry $
     cmp     r14, 0
     jg     error_if_without_end
 
+    
+    mov     rax, [rbp - 48]
+    lea     r13, [rax]  ; token file ptr
+    mov     rax, [rbp - 120]
+    lea     r14, [rax]  ; output file ptr
+
+    xor     rbx, rbx
+    .loop_find_function_calls:
+        cmp     BYTE [r13 + rbx], tkIdent
+        jz      .loop_find_function_call_ident
+ 
+        jmp     .loop_find_function_calls_end
+        
+        .loop_find_function_call_ident:
+        cmp     BYTE [r13 + rbx + 9], 0
+        jnz     .loop_find_function_calls_end
+
+        mov     rax, [rbp - 96]
+        lea     r10, [rax]
+        xor     r15, r15
+        .loop_find_call_id:
+            cmp     r15, [rbp - 112]
+            jz      .loop_find_call_id_stop
+            
+            mov     rdi, [r10 + r15 + 8]
+            mov     rsi, [r13 + rbx + 10]
+            mov     rdx, [r10 + r15 + 16]
+            call    mem_cmp
+            cmp     rax, 0
+            jz      .loop_find_call_id_end
+            
+            mov     BYTE [r13 + rbx + 9], varIdentProc
+            mov     rax, QWORD [r10 + r15]
+            mov     QWORD [r13 + rbx + 10], rax ; override bc why not
+            jmp     .loop_find_call_id_stop
+
+            .loop_find_call_id_end:
+            lea     rdi, [r14 + r15] 
+            add     r15, 32
+            jmp     .loop_find_call_id
+
+        .loop_find_call_id_stop:
+
+        .loop_find_function_calls_end:
+        add     rbx, 32
+        cmp     rbx, r12
+        jnz     .loop_find_function_calls
+    
 
     ; allocate memory
     mov     rdi, 2048
@@ -803,6 +889,9 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkEnd
         jz      .output_end
+
+        cmp     BYTE [r13 + rbx], tkIdent
+        jz      .output_ident
 
         cmp     BYTE [r13 + rbx], tkSys0
         jz      .output_syscall0
@@ -1226,18 +1315,18 @@ entry $
             mov     rdx, ASM_PROC_DEC_LEN
             call    mem_move
             add     r15, ASM_PROC_DEC_LEN
-
+            
+            ; SKIPPING
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_JMP
             mov     rdx, ASM_JMP_LEN
             call    mem_move
             add     r15, ASM_JMP_LEN
             
-            mov     r8, [r13 + rbx + 9] ; end
-
+            
             lea     rsi, [rsp]
             sub     rsp, 20
-            mov     rdi, [r13 + r8 + 10] ; addr end
+            mov     rdi, [r13 + rbx + 9] ; addr end
             call    uitds
             lea     rdi, [r14 + r15]
             mov     rsi, rax
@@ -1247,6 +1336,37 @@ entry $
 
             mov     BYTE [r14 + r15], 10
             add     r15, 1
+
+            ; DECL
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PROC_L
+            mov     rdx, ASM_PROC_L_LEN
+            call    mem_move
+            add     r15, ASM_PROC_L_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 9] ; addr end
+            call    uitds
+            lea     rdi, [r14 + r15]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r15, rdx
+
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r15, ASM_COLON_LEN
+
+            ; PREPARATION
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_PROC_PREP
+            mov     rdx, ASM_PROC_PREP_LEN
+            call    mem_move
+            add     r15, ASM_PROC_PREP_LEN
+
             jmp     .output_jmp_end
 
 
@@ -1255,9 +1375,9 @@ entry $
             jz      .output_end_var_if
             cmp     BYTE [r13 + rbx + 9], varEndDo
             jz      .output_end_var_do
-
-            ; TODO: HANDLE INVALID END VARIATION 
-            
+            cmp     BYTE [r13 + rbx + 9], varEndProc
+            jz      .output_end_var_proc
+            jmp     error_illegal 
             .output_end_var_if: 
                 lea     rdi, [r14 + r15]
                 mov     rsi, ASM_END_L
@@ -1275,7 +1395,6 @@ entry $
                 sub     rsp, 20
                 mov     rdi, [r13 + rbx + 10]
                 call    uitds
-
                 lea     rdi, [r14 + r15]
                 mov     rsi, rax
                 call    mem_move
@@ -1344,7 +1463,94 @@ entry $
                 add     r15, ASM_COLON_LEN
 
                 jmp     .output_jmp_end
- 
+
+            .output_end_var_proc:
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_PROC_END
+                mov     rdx, ASM_PROC_END_LEN
+                call    mem_move
+                add     r15, ASM_PROC_END_LEN
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_ADDR
+                mov     rdx, ASM_ADDR_LEN
+                call    mem_move
+                add     r15, ASM_ADDR_LEN
+
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 10]
+                call    uitds
+                lea     rdi, [r14 + r15]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r15, rdx
+                
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_COLON
+                mov     rdx, ASM_COLON_LEN
+                call    mem_move
+                add     r15, ASM_COLON_LEN
+
+                jmp     .output_jmp_end
+
+
+        .output_ident:
+            cmp     BYTE [r13 + rbx + 9], varIdentProc
+            jz      .output_proc_call
+            cmp     BYTE [r13 + rbx + 9], varIdentIgnore
+            jz      .output_jmp_end
+          
+            ; TODO: use this to detect identifiers without decl
+            jmp     error_illegal
+
+            .output_proc_call:
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_PROC_CALL_L
+                mov     rdx, ASM_PROC_CALL_L_LEN
+                call    mem_move
+                add     r15, ASM_PROC_CALL_L_LEN
+                
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_CALL_START
+                mov     rdx, ASM_CALL_START_LEN
+                call    mem_move
+                add     r15, ASM_CALL_START_LEN
+                ;; TODO
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_CALL
+                mov     rdx, ASM_CALL_LEN
+                call    mem_move
+                add     r15, ASM_CALL_LEN
+            
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_PROC_L
+                mov     rdx, ASM_PROC_L_LEN
+                call    mem_move
+                add     r15, ASM_PROC_L_LEN
+
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 10]
+                call    uitds
+                lea     rdi, [r14 + r15]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r15, rdx
+
+
+                lea     rdi, [r14 + r15]
+                mov     rsi, ASM_CALL_END
+                mov     rdx, ASM_CALL_END_LEN
+                call    mem_move
+                add     r15, ASM_CALL_END_LEN
+
+                jmp     .output_jmp_end
+
         .output_syscall0:
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_SYS0
@@ -1907,11 +2113,13 @@ print_c:
     push    rdx
     push    rdi
     push    rax
+    push    rcx
     lea     rsi, [char_c]
     mov     rdx, 1
     mov     rdi, STDOUT
     mov     rax, SYS_WRITE
     syscall
+    pop     rcx
     pop     rax
     pop     rdi
     pop     rdx
@@ -2291,34 +2499,51 @@ ASM_IF_LEN      =   $ - ASM_IF
 ASM_THEN        db  "; -- THEN -- ", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr" ; insert jmp label 
 ASM_THEN_LEN    =   $ - ASM_THEN
 
-ASM_ELSE        db  "; -- ELSE --", 10, "jmp .Addr"
+ASM_ELSE        db  "; -- ELSE --", 10, "jmp _Addr"
 ASM_ELSE_LEN    =   $ - ASM_ELSE
 
-ASM_WHILE       db  "; -- WHILE --", 10, ".Addr"
+ASM_WHILE       db  "; -- WHILE --", 10, "_Addr"
 ASM_WHILE_LEN   =   $ - ASM_WHILE
 
-ASM_DO          db  "; -- DO --", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr"
+ASM_DO          db  "; -- DO --", 10, "pop rax", 10, "cmp rax, 0", 10, "jz _Addr"
 ASM_DO_LEN      =   $ - ASM_DO
 
 ASM_END_L       db  "; -- END --", 10
 ASM_END_L_LEN   =   $ - ASM_END_L
 
-ASM_ADDR        db  ".Addr"
+ASM_ADDR        db  "_Addr"
 ASM_ADDR_LEN    =   $ - ASM_ADDR
 
 ASM_COLON       db  ":", 10
 ASM_COLON_LEN=   $ - ASM_COLON
 
-ASM_JMP     db  "jmp .Addr"
+ASM_JMP     db  "jmp _Addr"
 ASM_JMP_LEN =   $ - ASM_JMP
 
 
-ASM_PROC_DEC        db  "; -- PROC DECLERATION --", 10
+ASM_PROC_DEC        db  "; -- PROC DECLERATION --", 10, "; - skip -", 10
 ASM_PROC_DEC_LEN    =   $ - ASM_PROC_DEC
 
-ASM_PROC_L          db  ".Proc", 10
+ASM_PROC_PREP       db  "; - prepare -", 10, "mov [RETURN_STACK_PTR], rsp", 10, "mov rsp, rax", 10, "; - body -", 10
+ASM_PROC_PREP_LEN   =   $ - ASM_PROC_PREP
+
+ASM_PROC_L          db  "_Proc"
 ASM_PROC_L_LEN      =   $ - ASM_PROC_L
 
+ASM_PROC_END        db  "; -- PROC END --", 10, "; - return - ", 10, "mov rax, rsp", 10, "mov rsp, [RETURN_STACK_PTR]", 10, "ret", 10, "; - skip -", 10
+ASM_PROC_END_LEN    =   $ - ASM_PROC_END
+
+ASM_PROC_CALL_L     db  "; -- CALL PROC -- ", 10
+ASM_PROC_CALL_L_LEN =   $ - ASM_PROC_CALL_L
+
+ASM_CALL_START      db  "mov rax, rsp", 10, "mov rsp, [RETURN_STACK_PTR]", 10
+ASM_CALL_START_LEN  =   $ - ASM_CALL_START
+
+ASM_CALL_END        db  10, "mov [RETURN_STACK_PTR], rsp", 10, "mov rsp, rax", 10
+ASM_CALL_END_LEN    =   $ - ASM_CALL_END
+
+ASM_CALL            db  "call "
+ASM_CALL_LEN        =   $ -  ASM_CALL
 
 ; SYSCALLS (WORKS GOOD ENOUGH FOR NOW)
 ASM_SYS0        db  "; -- SYSCALL0 --", 10, "pop rax", 10, "syscall", 10, "push rax", 10
@@ -2398,6 +2623,9 @@ ASM_HEADER      db "format ELF64 executable 3", 10
     db "ret", 10
     db 10
     db "entry $", 10
+    db "; -- STARTUP -- ", 10
+    db "mov rax, RETURN_STACK_END", 10
+    db "mov [RETURN_STACK_PTR], rax", 10, 10
 
 ASM_HEADER_LEN = $ - ASM_HEADER
 
@@ -2415,7 +2643,7 @@ ASM_CONST_DATA_SECTION_LEN      =   $ - ASM_CONST_DATA_SECTION
 ASM_MUTABLE_DATA_SECTION        db  "; -- MUTABLE DATA --", 10, "segment readable writable", 10, 10
 ASM_MUTABLE_DATA_SECTION_LEN    =   $ - ASM_MUTABLE_DATA_SECTION
 
-ASM_RETURN_STACK        db  "; -- RETURN STACK --", 10, "RETURN_STACK rq 512", 10, "RETURN_STACK_INDEX rq 1", 10
+ASM_RETURN_STACK        db  "; -- RETURN STACK --", 10, "RETURN_STACK_PTR rq 1", 10, "RETURN_STACK rq 512", 10, "RETURN_STACK_END:", 10
 ASM_RETURN_STACK_LEN    =   $ - ASM_RETURN_STACK
 
 ; PRINTING

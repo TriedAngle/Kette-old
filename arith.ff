@@ -1,5 +1,21 @@
-proc hello in 1 . end
+proc testing in 69 . end
 
-69 .
-hello
-420 .
+proc functionTest in 420 . end
+
+proc lol in 
+    testing 
+    functionTest 
+    1 . 
+end
+
+666 .
+
+testing
+
+666 .
+
+functionTest
+
+666 .
+
+lol
