@@ -40,6 +40,10 @@ entry $
 mov rax, RETURN_STACK_END
 mov [RETURN_STACK_PTR], rax
 
+mov rax, rsp
+mov [ARGS_COUNT], rax
+add rax, 8
+mov [ARGS_PTR], rax
 ; -- PROC DECLERATION --
 ; - skip -
 jmp _Addr0
@@ -138,6 +142,23 @@ mov rsp, [RETURN_STACK_PTR]
 call _Proc3
 mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
+; -- PROC DECLERATION --
+; - skip -
+jmp _Addr4
+_Proc4:
+; - prepare -
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; - body -
+; -- PUSH --
+push 1
+; -- PROC END --
+; - return - 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+ret
+; - skip -
+_Addr4:
 
 mov rdi, 0
 mov rax, 60
@@ -153,5 +174,7 @@ segment readable writable
 
 ; -- RETURN STACK --
 RETURN_STACK_PTR rq 1
-RETURN_STACK rq 512
+RETURN_STACK rq 1028
 RETURN_STACK_END:
+ARGS_COUNT rq 1
+ARGS_PTR rq 1

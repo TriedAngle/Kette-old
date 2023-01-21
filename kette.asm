@@ -62,13 +62,32 @@ varEndProc  = 3
 varIdentIgnore  = 1
 varIdentProc    = 2
 
+
+segment readable
+    testString db "hello test lol", 0
+
 segment readable executable
 
 entry $
+    mov     rax, rsp 
+    mov     [arg_count], rax
+    add     rax, 8
+    mov     [arg_ptr], rax
+
+    mov     rdi, [arg_count]
+    mov     rdi, [rdi]
+    
+    cmp     rdi, 1
+    jz      error_no_file_given
+
+    cmp     rdi, 2
+    jz      error_no_output_given
+
     push    rbp
     mov     rbp, rsp
 
-    mov     rdi, file0
+    mov     rdi, [arg_ptr]
+    mov     rdi, [rdi + 8]
     call    open_file
     
     lea     r12, [rsp] ; "base pointer"
@@ -1743,8 +1762,8 @@ entry $
     call    mem_move
     add     r15, ASM_RETURN_STACK_LEN
 
-
-    mov     rdi, file2
+    mov     rdi, [arg_ptr]
+    mov     rdi, [rdi + 16]
     mov     rsi, O_WRONLY or O_CREAT or O_TRUNC
     xor     rdx, rdx
     mov     rax, SYS_OPEN
@@ -2212,6 +2231,20 @@ uitds:
     ret
 
 
+; input:
+;   rdi: string
+; output:
+;   rdx: len
+strlen:
+    xor rax, rax
+    .loop_strlen:
+        inc rax
+        cmp BYTE [rdi + rax], 0
+        jnz .loop_strlen
+    .strlen_end:
+        ret
+
+
 ; ERRORS
 error_file_not_found:
     mov     rdi, STDOUT
@@ -2301,6 +2334,28 @@ error_in_without_proc:
     mov     rax, SYS_EXIT
     syscall
 
+error_no_file_given:
+    mov     rdi, STDOUT
+    mov     rsi, err8
+    mov     rdx, err8len
+    mov     rax, SYS_WRITE
+    syscall
+    
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
+error_no_output_given:
+    mov     rdi, STDOUT
+    mov     rsi, err9
+    mov     rdx, err9len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
 error_illegal:
     mov     rdi, STDOUT
     mov     rsi, errminus1
@@ -2313,8 +2368,8 @@ error_illegal:
     syscall
 
 segment readable writable
-buf         rb  80
-
+    arg_count rq 1
+    arg_ptr rq 1
 
 segment readable
 ; ERRORS
@@ -2341,6 +2396,12 @@ err6len     =   $ - err6
 
 err7        db  "then without if"
 err7len     =   $ - err7
+
+err8        db  "No file given"
+err8len     =   $ - err8
+
+err9        db  "No output_given"
+err9len     =   $ - err9
 
 errminus1   db  "illegal error LOL, this is probably a parser error"
 errminus1len=   $ - errminus1
@@ -2626,6 +2687,11 @@ ASM_HEADER      db "format ELF64 executable 3", 10
     db "; -- STARTUP -- ", 10
     db "mov rax, RETURN_STACK_END", 10
     db "mov [RETURN_STACK_PTR], rax", 10, 10
+    db "mov rax, rsp", 10
+    db "mov [ARGS_COUNT], rax", 10
+    db "add rax, 8", 10
+    db "mov [ARGS_PTR], rax", 10
+
 
 ASM_HEADER_LEN = $ - ASM_HEADER
 
@@ -2643,7 +2709,7 @@ ASM_CONST_DATA_SECTION_LEN      =   $ - ASM_CONST_DATA_SECTION
 ASM_MUTABLE_DATA_SECTION        db  "; -- MUTABLE DATA --", 10, "segment readable writable", 10, 10
 ASM_MUTABLE_DATA_SECTION_LEN    =   $ - ASM_MUTABLE_DATA_SECTION
 
-ASM_RETURN_STACK        db  "; -- RETURN STACK --", 10, "RETURN_STACK_PTR rq 1", 10, "RETURN_STACK rq 512", 10, "RETURN_STACK_END:", 10
+ASM_RETURN_STACK        db  "; -- RETURN STACK --", 10, "RETURN_STACK_PTR rq 1", 10, "RETURN_STACK rq 1028", 10, "RETURN_STACK_END:", 10, "ARGS_COUNT rq 1", 10, "ARGS_PTR rq 1", 10
 ASM_RETURN_STACK_LEN    =   $ - ASM_RETURN_STACK
 
 ; PRINTING
@@ -2654,10 +2720,5 @@ char_b      db 66
 char_c      db 67
 
 ; HARDCODED
-file0       db  "arith.ff", 0
-file0len    =   8
 file1       db  "hexdump.XD", 0
 file1len    =   10
-
-file2       db   "arith.gen.asm", 0
-file2len    =   13

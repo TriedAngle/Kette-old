@@ -9,4 +9,3 @@ FILE_NAME_1 write
 
 
 proc SYS_WRITE in 1 end
-: SYS_WRITE in 1 ;

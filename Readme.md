@@ -1,18 +1,25 @@
 # Kette
 Concatenative Stack-Based Programming Language
 
+## Usage
+1. compile the compiler: `fasm kette.asm`
+2. compile file to asm: `./kette <file> <output-fasm>`
+3. compile asm: `fasm <output-fasm> <output>`
+4. run code: `./<output>`
+
+
 ## Features & TODO list
 ** everything marked with prio 0 and 1 is "required" before selfhosting
 - [x] if else
 - [x] loops
 - [x] procs
 - [x] constants (constants are special case of procs in this lang lmao)
-- [ ] strings | constants work already | TODO: \n at least | PRIO 0
-- [ ] string formatting | PRIO 1
+- [x] strings | constants work already | PRIO 0
+- [ ] string formatting (\n & number / string insert & unicode) | PRIO 1
 - [ ] comments | PRIO 0
 - [ ] single error handling | PRIO 1 | multi error handling will be added in self host
-- [ ] command line arguments & refactor to make them useful (requires fork or clone and exec?) | PRIO 1
-- [ ] command line arguments code | PRIO 1
+- [x] command line arguments
+- [ ] command line arguments code | code in place, needs accessibility | PRIO 1
 - [ ] ptr | PRIO 0
 - [ ] mutable globals | PRIO 1
 - [ ] syntax highlighting VSC + VIM | PRIO 2
