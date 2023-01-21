@@ -1,25 +1,29 @@
 # Kette
 Concatenative Stack-Based Programming Language
 
-## Features
-
+## Features & TODO list
+** everything marked with prio 0 and 1 is "required" before selfhosting
 - [x] if else
 - [x] loops
-- [ ] procs
-- [ ] strings | TODO: \n at least
-- [ ] comments
-- [ ] single error handling | multi error handling will be added in self host
-- [ ] command line arguments & refactor to make them useful (requires fork or clone and exec?)
-- [ ] ptr
-- [ ] globals (const and mut)
+- [x] procs
+- [x] constants (constants are special case of procs in this lang lmao)
+- [ ] strings | constants work already | TODO: \n at least | PRIO 0
+- [ ] string formatting | PRIO 1
+- [ ] comments | PRIO 0
+- [ ] single error handling | PRIO 1 | multi error handling will be added in self host
+- [ ] command line arguments & refactor to make them useful (requires fork or clone and exec?) | PRIO 1
+- [ ] command line arguments code | PRIO 1
+- [ ] ptr | PRIO 0
+- [ ] mutable globals | PRIO 1
+- [ ] syntax highlighting VSC + VIM | PRIO 2
 - [ ] types (int, string, ptr)
 - [ ] static typechecking
 - [ ] arrays
-- [ ] syscalls
+- [x] syscalls
 - [ ] match (on types & values) 
-- [ ] modules
+- [ ] modules | PRIO 1
 - [ ] simple datastructures ex. HashMap, Dynamic Array
-- [ ] self hosted
+- [ ] self hosted | PRIO 2
 - [ ] some optimizations
 - [ ] proc options e.g. "inline", "c"
 - [ ] memory management

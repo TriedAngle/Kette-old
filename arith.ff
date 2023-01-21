@@ -1,21 +1,12 @@
-proc testing in 69 . end
+proc SYS_WRITE in 1 end
+proc STDOUT in 1 end
 
-proc functionTest in 420 . end
+proc FILE_NAME_1 in "test.ket" end
 
-proc lol in 
-    testing 
-    functionTest 
-    1 . 
-end
+proc write in STDOUT SYS_WRITE syscall3 end
 
-666 .
+FILE_NAME_1 write
 
-testing
 
-666 .
-
-functionTest
-
-666 .
-
-lol
+proc SYS_WRITE in 1 end
+: SYS_WRITE in 1 ;

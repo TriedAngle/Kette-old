@@ -49,10 +49,7 @@ mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
 ; - body -
 ; -- PUSH --
-push 69
-; -- DUMP --
-pop rdi
-call dump_uint
+push 1
 ; -- PROC END --
 ; - return - 
 mov rax, rsp
@@ -69,10 +66,7 @@ mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
 ; - body -
 ; -- PUSH --
-push 420
-; -- DUMP --
-pop rdi
-call dump_uint
+push 1
 ; -- PROC END --
 ; - return - 
 mov rax, rsp
@@ -88,23 +82,9 @@ _Proc2:
 mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
 ; - body -
-; -- CALL PROC -- 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-call _Proc0
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; -- CALL PROC -- 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-call _Proc1
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; -- PUSH --
-push 1
-; -- DUMP --
-pop rdi
-call dump_uint
+; -- PUSH STRING --
+push CONST_STRING_1_LEN
+push CONST_STRING_1
 ; -- PROC END --
 ; - return - 
 mov rax, rsp
@@ -112,37 +92,50 @@ mov rsp, [RETURN_STACK_PTR]
 ret
 ; - skip -
 _Addr2:
-; -- PUSH --
-push 666
-; -- DUMP --
-pop rdi
-call dump_uint
-; -- CALL PROC -- 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-call _Proc0
+; -- PROC DECLERATION --
+; - skip -
+jmp _Addr3
+_Proc3:
+; - prepare -
 mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
-; -- PUSH --
-push 666
-; -- DUMP --
-pop rdi
-call dump_uint
+; - body -
 ; -- CALL PROC -- 
 mov rax, rsp
 mov rsp, [RETURN_STACK_PTR]
 call _Proc1
 mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
-; -- PUSH --
-push 666
-; -- DUMP --
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc0
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; -- SYSCALL3 --
+pop rax
 pop rdi
-call dump_uint
+pop rsi
+pop rdx
+syscall
+push rax
+; -- PROC END --
+; - return - 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+ret
+; - skip -
+_Addr3:
 ; -- CALL PROC -- 
 mov rax, rsp
 mov rsp, [RETURN_STACK_PTR]
 call _Proc2
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc3
 mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
 
@@ -153,6 +146,8 @@ syscall
 ; -- CONST DATA --
 segment readable
 
+CONST_STRING_1 db "test.ket"
+CONST_STRING_1_LEN = $ - CONST_STRING_1
 ; -- MUTABLE DATA --
 segment readable writable
 
