@@ -1,7 +1,9 @@
-proc SYS_WRITE in 1 end
-proc STDOUT in 1 end
+: SYS_WRITE in 1 ;
+: STDOUT in 1 ;
+
 // this is documentation //
-proc FILE_NAME_1 in "test.ket" end
+
+: FILE_NAME_1 in "test.ket" ;
 
 proc write // ( ptr len -- ) // in STDOUT SYS_WRITE syscall3 end
 

@@ -16,7 +16,7 @@ Concatenative Stack-Based Programming Language
 - [x] constants (constants are special case of procs in this lang lmao)
 - [x] strings | constants work already | PRIO 0
 - [ ] string formatting (\n & number / string insert & unicode) | PRIO 1
-- [ ] comments | PRIO 0
+- [x] comments | PRIO 0
 - [ ] single error handling | PRIO 1 | multi error handling will be added in self host
 - [x] command line arguments
 - [ ] command line arguments code | code in place, needs accessibility | PRIO 1

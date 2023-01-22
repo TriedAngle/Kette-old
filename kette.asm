@@ -63,9 +63,6 @@ varIdentIgnore  = 1
 varIdentProc    = 2
 
 
-segment readable
-    testString db "hello test lol", 0
-
 segment readable executable
 
 entry $
@@ -187,7 +184,17 @@ entry $
         mov     rax, tkLesser
         cmp     BYTE [r13], "<"
         cmovz   r15, rax
-        
+       
+        mov     rax, tkProc
+        cmp     BYTE [r13], ":"
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
+        mov     rax, tkEnd
+        cmp     BYTE [r13], ";"
+        cmovz   r15, rax
+        jz      .finalize_keyword_simple
+
         .check_symbol_len2:
         cmp     r14, 2
         jnz     .not_symbol_len3
@@ -205,6 +212,9 @@ entry $
         cmovz   r15, rax
 
         .not_symbol_len3:
+        ; skip comments
+        cmp     WORD [r13], "//"
+        jz      .end_word
 
         cmp     BYTE [r13], 34  ; strings are already "checked" in word generation
         jz      .finalize_string
@@ -1849,7 +1859,7 @@ next_string:
     xor rcx, rcx ; word len
   
     xor r15, r15 ; is in "
-
+    xor r8, r8
     .loop_until_whitespace:
         cmp r14, [r12 - 16] 
         jz .found_whitespace
@@ -1857,9 +1867,19 @@ next_string:
         inc rcx
         inc r14
 
+        cmp WORD [r13 + rcx - 2], "//"
+        jz .found_comment
         cmp BYTE [r13 + rcx - 1], 34
         jz .found_quote
         jmp .move_on 
+
+        .found_comment:
+            cmp r8, 0
+            mov rax, 1
+            cmovz r8, rax
+            mov rax, 0
+            cmovnz r8, rax
+            jmp .move_on
 
         .found_quote:
             cmp r15, 0
@@ -1867,8 +1887,11 @@ next_string:
             cmovz r15, rax
             mov rax, 0
             cmovnz r15, rax
+            jmp .move_on
         
         .move_on:
+        cmp r8, 1
+        jz .loop_until_whitespace
         cmp r15, 1
         jz .loop_until_whitespace
 
@@ -2690,7 +2713,7 @@ ASM_HEADER      db "format ELF64 executable 3", 10
     db "mov rax, rsp", 10
     db "mov [ARGS_COUNT], rax", 10
     db "add rax, 8", 10
-    db "mov [ARGS_PTR], rax", 10
+    db "mov [ARGS_PTR], rax", 10, 10
 
 
 ASM_HEADER_LEN = $ - ASM_HEADER
