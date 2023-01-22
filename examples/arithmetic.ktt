@@ -1,11 +1,14 @@
 proc SYS_WRITE in 1 end
 proc STDOUT in 1 end
-
+// this is documentation //
 proc FILE_NAME_1 in "test.ket" end
 
-proc write in STDOUT SYS_WRITE syscall3 end
+proc write // ( ptr len -- ) // in STDOUT SYS_WRITE syscall3 end
 
 FILE_NAME_1 write
 
+//
+this is multiline commnet
 
-proc SYS_WRITE in 1 end
+//
+
