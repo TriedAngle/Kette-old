@@ -52,6 +52,9 @@ tkSys4      = 39
 tkSys5      = 40
 tkSys6      = 41
 
+tkBitAnd    = 42
+tkBitOr     = 43
+
 tkExit      = 255
 
 
@@ -86,7 +89,7 @@ entry $
     mov     rdi, [arg_ptr]
     mov     rdi, [rdi + 8]
     call    open_file
-    
+
     lea     r12, [rsp] ; "base pointer"
     push    rax ; ptr file mem  | rbp - 8
     push    rdx ; len file mem  | rbp - 16
@@ -98,15 +101,14 @@ entry $
 
 
     ; allocate memory for token loop
-    ; start out with 128 bytes
-    mov     rdi, 1024
+    mov     rdi, 8192
     call    map_memory
     
     push    rax ; ptr token mem | rbp - 48
     push    rdi ; len token mem | rbp - 56
 
     ; allocate memory for strings
-    mov     rdi, 1024
+    mov     rdi, 2048
     call    map_memory
 
     push    rax ; ptr string mem | rbp - 64
@@ -117,14 +119,13 @@ entry $
     push    rbx ; string & proc counter | rbp - 88
 
     ; allocate memory for procs
-    mov     rdi, 1024
+    mov     rdi, 2048
     call    map_memory
-
+    
     push    rax ; ptr proc mem | rbp - 96
     push    rdi ; len proc mem | rbp - 104
     xor     rbx, rbx
     push    rbx ; offset proc mem | rbp - 112
-
     xor     rbx, rbx ; tokenspace offset
     .token_loop:
         mov     rdi, r12
@@ -133,9 +134,8 @@ entry $
         ; rdx = len sub string
         cmp     rax, 0
         jz      .exit_token_loop;
-
         mov     r13, rax ; ptr sub string
-        mov     r14, rdx
+        mov     r14, rdx ; len sub string
        
         mov     r15, -1
         ; checking for symbol
@@ -185,6 +185,12 @@ entry $
         cmp     BYTE [r13], "<"
         cmovz   r15, rax
        
+        mov     rax, tkBitAnd
+        cmp     BYTE [r13], "&"
+
+        mov     rax, tkBitOr
+        cmp     BYTE [r13], "|"
+
         mov     rax, tkProc
         cmp     BYTE [r13], ":"
         cmovz   r15, rax
@@ -555,6 +561,7 @@ entry $
     ;   rbx -> r12 | token mem effective len
     mov     r12, rbx
 
+
     mov     rdi, file1
     mov     rsi, O_WRONLY or O_CREAT
     xor     rdx, rdx
@@ -805,7 +812,7 @@ entry $
     
 
     ; allocate memory
-    mov     rdi, 2048
+    mov     rdi, 4096
     call    map_memory
     push    rax ; [rbp - 120] = ptr | output file
     push    rdi ; [rbp - 128] = len | output file
@@ -863,6 +870,13 @@ entry $
 
         cmp     BYTE [r13 + rbx], tkLEqual
         jz      .output_lesser_equal
+
+        cmp     BYTE [r13 + rbx], tkBitAnd
+        jz      .output_bit_and
+
+        cmp     BYTE [r13 + rbx], tkBitOr
+        jz      .output_bit_or
+
 
         cmp     BYTE [r13 + rbx], tkAnd
         jz      .output_and
@@ -1113,15 +1127,31 @@ entry $
             add     r15, ASM_GEQUAL_LEN
             jmp    .output_jmp_end
 
-       .output_lesser_equal:
+        .output_lesser_equal:
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_LEQUAL
             mov     rdx, ASM_LEQUAL_LEN
             call    mem_move
             add     r15, ASM_LEQUAL_LEN
             jmp    .output_jmp_end
-       
-       .output_and:
+      
+        .output_bit_and:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_BIT_AND
+            mov     rdx, ASM_BIT_AND_LEN
+            call    mem_move
+            add     r15, ASM_BIT_AND_LEN
+            jmp     .output_jmp_end
+
+        .output_bit_or:
+            lea     rdi, [r14 + r15]
+            mov     rsi, ASM_BIT_OR
+            mov     rdx, ASM_BIT_OR_LEN
+            call    mem_move
+            add     r15, ASM_BIT_OR_LEN
+            jmp     .output_jmp_end
+
+        .output_and:
             lea     rdi, [r14 + r15]
             mov     rsi, ASM_AND
             mov     rdx, ASM_AND_LEN
@@ -1677,7 +1707,6 @@ entry $
         sub     rsp, 20
         mov     rdi, [r13 + rbx]
         call    uitds
-
         lea     rdi, [r14 + r15]
         mov     rsi, rax
         call    mem_move
@@ -1695,12 +1724,12 @@ entry $
         mov     rdx, [r13 + rbx + 8]
         call    mem_move
         add     r15, [r13 + rbx + 8]
-        
+
         lea     rdi, [r14 + r15]
-        mov     rsi, newline
-        mov     rdx, 1
+        mov     rsi, ASM_STR_END
+        mov     rdx, ASM_STR_END_LEN
         call    mem_move
-        add     r15, 1
+        add     r15, ASM_STR_END_LEN
 
         lea     rdi, [r14 + r15]
         mov     rsi, ASM_CONST_STR
@@ -1712,7 +1741,6 @@ entry $
         sub     rsp, 20
         mov     rdi, [r13 + rbx]
         call    uitds
-
         lea     rdi, [r14 + r15]
         mov     rsi, rax
         call    mem_move
@@ -1741,7 +1769,6 @@ entry $
         sub     rsp, 20
         mov     rdi, [r13 + rbx]
         call    uitds
-
         lea     rdi, [r14 + r15]
         mov     rsi, rax
         call    mem_move
@@ -1749,10 +1776,10 @@ entry $
         add     r15, rdx
 
         lea     rdi, [r14 + r15]
-        mov     rsi, newline
-        mov     rdx, 1
+        mov     rsi, ASM_STR_LEN_END
+        mov     rdx, ASM_STR_LEN_END_LEN
         call    mem_move
-        add     r15, 1
+        add     r15, ASM_STR_LEN_END_LEN
 
         add     rbx, 24
         jmp .loop_add_const_strings
@@ -2539,8 +2566,15 @@ ASM_LESSER_LEN  =   $ - ASM_LESSER
 ASM_GEQUAL      db  "; -- GREATER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovge rcx, rdx", 10, "push rcx", 10
 ASM_GEQUAL_LEN  =   $ - ASM_GEQUAL
 
-ASM_LEQUAL       db  "; -- LESSER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovle rcx, rdx", 10, "push rcx", 10
+ASM_LEQUAL      db  "; -- LESSER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovle rcx, rdx", 10, "push rcx", 10
 ASM_LEQUAL_LEN  =   $ - ASM_LEQUAL
+
+ASM_BIT_AND     db  "; -- BIT AND --", 10, "pop rbx", 10, "pop rax", 10, "and rax, rbx", 10, "push rax", 10
+ASM_BIT_AND_LEN =   $ - ASM_BIT_AND
+
+
+ASM_BIT_OR      db  "; -- BIT OR --", 10, "pop rbx", 10, "pop rax", 10, "or rax, rbx", 10, "push rbx", 10
+ASM_BIT_OR_LEN  =   $ - ASM_BIT_OR
 
 ASM_AND         db  "; -- AND --", 10, "pop rbx", 10, "pop rax", 10, "mov rcx, 1", 10, "mov rdx, 0", 10, "and rax, rbx", 10, "cmp rax, 0", 10, "cmovnz rdx, rcx", 10, "push rdx", 10
 ASM_AND_LEN     =   $ - ASM_AND
@@ -2669,6 +2703,14 @@ ASM_DB_WORD_LEN     =   $ - ASM_DB_WORD
 ASM_EQ_LEN_WORD     db  " = $ - "
 ASM_EQ_LEN_WORD_LEN =   $ - ASM_EQ_LEN_WORD
 
+ASM_STR_LEN_END     db  " - 1", 10
+ASM_STR_LEN_END_LEN =   $ - ASM_STR_LEN_END
+
+ASM_STR_END         db  ", 0", 10
+ASM_STR_END_LEN     =   $ - ASM_STR_END
+
+
+
 ASM_HEADER      db "format ELF64 executable 3", 10
     db 10
     db "segment readable executable", 10
@@ -2728,8 +2770,7 @@ ASM_ENDING_LEN = $ - ASM_ENDING
 ASM_CONST_DATA_SECTION          db  10, "; -- CONST DATA --", 10, "segment readable", 10, 10
 ASM_CONST_DATA_SECTION_LEN      =   $ - ASM_CONST_DATA_SECTION
 
-
-ASM_MUTABLE_DATA_SECTION        db  "; -- MUTABLE DATA --", 10, "segment readable writable", 10, 10
+ASM_MUTABLE_DATA_SECTION        db  10, 10, "; -- MUTABLE DATA --", 10, "segment readable writable", 10, 10
 ASM_MUTABLE_DATA_SECTION_LEN    =   $ - ASM_MUTABLE_DATA_SECTION
 
 ASM_RETURN_STACK        db  "; -- RETURN STACK --", 10, "RETURN_STACK_PTR rq 1", 10, "RETURN_STACK rq 1028", 10, "RETURN_STACK_END:", 10, "ARGS_COUNT rq 1", 10, "ARGS_PTR rq 1", 10

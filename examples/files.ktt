@@ -1,0 +1,41 @@
+: SysRead       in 0    ;
+: SysWrite      in 1    ;
+: SysOpen       in 2    ;
+: SysClose      in 3    ;
+: SysLSeek      in 8    ;
+: SysMMap       in 9    ;
+
+: OpRead        in 0    ;
+: OpWrite       in 1    ;
+: OpCreate      in 64   ;
+: OpTrunctuate  in 512  ;
+
+: SeekSet       in 0    ;
+: SeekCurrent   in 1    ;
+: SeekEnd       in 2    ;
+
+: StdIn         in 0    ;
+: StdOut        in 1    ;
+: StdErr        in 2    ;
+
+: file-write //( len(str) ptr(str) fd -- )// in SysWrite syscall3 drop ;
+
+: print-string //( len(str) ptr(str) -- )// in StdOut file-write ; 
+
+: file-desc-open //( mode flags ptr(str) -- fd )// in SysOpen syscall3 ;
+
+: file-get-len //( ptr(fd) -- len )// in 
+    SeekEnd 0 rot // fd o 0  -> o 0 fd //
+    SysLSeek syscall3 
+;
+
+: file-open //( len(str) ptr(str) flags -- fd )// in
+    0 2swap // l p f 0 -> f 0 l p //
+    swap drop // f 0 l p -> f 0 p //
+    rot // f 0 p -> 0 p f //
+    swap // 0 f p //
+    file-desc-open 
+;
+
+"examples/test.txt" OpRead file-open dup . file-get-len .
+
