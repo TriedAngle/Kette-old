@@ -1338,10 +1338,10 @@ entry $
             add     r15, rdx
             
             lea     rdi, [r14 + r15]
-            mov     rsi, ASM_ADDR
-            mov     rdx, ASM_ADDR_LEN
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
             call    mem_move
-            add     r15, ASM_ADDR_LEN
+            add     r15, ASM_COLON_LEN
 
             jmp     .output_jmp_end
 
@@ -2614,7 +2614,7 @@ ASM_2DROP_LEN   =   $ - ASM_2DROP
 ASM_IF          db  "; -- IF --", 10 ; only debug label
 ASM_IF_LEN      =   $ - ASM_IF
 
-ASM_THEN        db  "; -- THEN -- ", 10, "pop rax", 10, "cmp rax, 0", 10, "jz .Addr" ; insert jmp label 
+ASM_THEN        db  "; -- THEN -- ", 10, "pop rax", 10, "cmp rax, 0", 10, "jz _Addr" ; insert jmp label 
 ASM_THEN_LEN    =   $ - ASM_THEN
 
 ASM_ELSE        db  "; -- ELSE --", 10, "jmp _Addr"

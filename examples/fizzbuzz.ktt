@@ -1,0 +1,18 @@
+: SysWrite      in 1    ;
+
+: StdOut        in 1    ;
+
+: file-write //( len(str) ptr(str) fd -- )// in SysWrite syscall3 drop ;
+
+: print-string //( len(str) ptr(str) -- )// in StdOut file-write ; 
+
+15 while dup 0 > do
+    if dup 3 % 0 = over 5 % 0 = and then
+        "FizzBuzz" print-string 0 . 
+    else
+        if dup 3 % 0 = then "Fizz" print-string 0 . end
+        if dup 5 % 0 = then "Buzz" print-string 0 . end
+    end
+    dup .
+    1 - 
+end

@@ -151,8 +151,10 @@ syscall
 ; -- CONST DATA --
 segment readable
 
-CONST_STRING_1 db "test.ket"
-CONST_STRING_1_LEN = $ - CONST_STRING_1
+CONST_STRING_1 db "test.ket", 0
+CONST_STRING_1_LEN = $ - CONST_STRING_1 - 1
+
+
 ; -- MUTABLE DATA --
 segment readable writable
 
