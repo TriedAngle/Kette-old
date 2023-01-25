@@ -1,0 +1,29 @@
+{
+  "name": "kette-language-support",
+  "displayName": "Kette Language Support",
+  "description": "Language Support for the Kette Programming Language",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ice-language/Kette"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "kette",
+      "aliases": ["Kette", "kette"],
+      "extensions": [".ktt"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "kette",
+      "scopeName": "source.kette",
+      "path": "./syntaxes/kette.tmLanguage.json"
+    }]
+  }
+}

@@ -1,0 +1,51 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Kette",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#numerics"
+		},
+		{
+			"include": "#comments"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.kette",
+				"match": "\\b(if|then|else|proc|while|do|in|end|:|;)\\b"
+			}]
+		},
+		"strings": {
+			"name": "string.quoted.double.kette",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.kette",
+					"match": "\\\\."
+				}
+			]
+		},
+		"comments": {
+			"name": "comment.kette",
+			"begin": "//",
+			"end": "//"
+		},
+		"numerics": {
+			"patterns": [
+				{
+					"match": "(?<=^|\\s)([$#%]?[-+]?[0-9]+(\\.[0-9]*e(-?[0-9]+)|\\.?[0-9a-fA-F]*))(?=\\s)",
+					"name": "constant.numeric.kette"
+				}
+			]
+		}
+	},
+	"scopeName": "source.kette"
+}
