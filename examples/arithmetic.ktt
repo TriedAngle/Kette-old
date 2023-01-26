@@ -1,16 +1,7 @@
-: SYS_WRITE in 1 ;
-: STDOUT in 1 ;
+5 7 + 3 + . // 5 + 7 + 3 = 15 //
 
-// this is documentation //
+5 7 3 + + . // 5 + 7 + 3 = 15 //
 
-: FILE_NAME_1 in "test.ket" ;
+19 4 /% . . // 19/4 = 4, 3 //
 
-proc write // ( ptr len -- ) // in STDOUT SYS_WRITE syscall3 end
-
-FILE_NAME_1 write
-
-//
-this is multiline commnet
-
-//
-
+3 1 - * 100 . // 3 - 1 * 100 -> 2 * 100 -> 200 no precedence //

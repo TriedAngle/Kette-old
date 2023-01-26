@@ -517,18 +517,23 @@ mov rsp, rax
 pop rax
 push rax
 push rax
-; -- DUMP --
-pop rdi
-call dump_uint
 ; -- CALL PROC -- 
 mov rax, rsp
 mov rsp, [RETURN_STACK_PTR]
 call _Proc19
 mov [RETURN_STACK_PTR], rsp
 mov rsp, rax
-; -- DUMP --
-pop rdi
-call dump_uint
+; -- SWAP --
+pop rax
+pop rbx
+push rax
+push rbx
+; -- CALL PROC -- 
+mov rax, rsp
+mov rsp, [RETURN_STACK_PTR]
+call _Proc17
+mov [RETURN_STACK_PTR], rsp
+mov rsp, rax
 
 mov rdi, 0
 mov rax, 60
@@ -537,7 +542,7 @@ syscall
 ; -- CONST DATA --
 segment readable
 
-CONST_STRING_1 db "examples/test.txt", 0
+CONST_STRING_1 db "test.txt", 0
 CONST_STRING_1_LEN = $ - CONST_STRING_1 - 1
 
 

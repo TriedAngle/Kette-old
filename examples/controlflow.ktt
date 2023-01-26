@@ -6,6 +6,16 @@ proc file-write //( len(str) ptr(str) fd -- )// in SysWrite syscall3 drop end
 
 proc print-string //( len(str) ptr(str) -- )// in StdOut file-write end
 
+
+if 420 69 > then
+    "Blaze it" print-string
+else
+    "😳" print-string
+    if 2 1 = then "math left the chat" end
+end
+
+
+// FizzBuzz //
 15 while dup 0 > do
     if dup 3 % 0 = over 5 % 0 = and then
         "FizzBuzz" print-string 0 . 

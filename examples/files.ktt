@@ -10,6 +10,10 @@
 : OpCreate      in 64   ;
 : OpTrunctuate  in 512  ;
 
+: ProtNone      in 0    ;
+: ProtRead      in 1    ;
+: ProtWrite     in 2    ;
+
 : SeekSet       in 0    ;
 : SeekCurrent   in 1    ;
 : SeekEnd       in 2    ;
@@ -37,5 +41,5 @@
     file-desc-open 
 ;
 
-"examples/test.txt" OpRead file-open dup . file-get-len .
+"test.txt" OpRead file-open dup file-get-len swap print-string
 

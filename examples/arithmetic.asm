@@ -45,104 +45,80 @@ mov [ARGS_COUNT], rax
 add rax, 8
 mov [ARGS_PTR], rax
 
-; -- PROC DECLERATION --
-; - skip -
-jmp _Addr0
-_Proc0:
-; - prepare -
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; - body -
 ; -- PUSH --
-push 1
-; -- PROC END --
-; - return - 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-ret
-; - skip -
-_Addr0:
-; -- PROC DECLERATION --
-; - skip -
-jmp _Addr1
-_Proc1:
-; - prepare -
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; - body -
+push 5
 ; -- PUSH --
-push 1
-; -- PROC END --
-; - return - 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-ret
-; - skip -
-_Addr1:
-; -- PROC DECLERATION --
-; - skip -
-jmp _Addr2
-_Proc2:
-; - prepare -
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; - body -
-; -- PUSH STRING --
-push CONST_STRING_1_LEN
-push CONST_STRING_1
-; -- PROC END --
-; - return - 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-ret
-; - skip -
-_Addr2:
-; -- PROC DECLERATION --
-; - skip -
-jmp _Addr3
-_Proc3:
-; - prepare -
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; - body -
-; -- CALL PROC -- 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-call _Proc1
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; -- CALL PROC -- 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-call _Proc0
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; -- SYSCALL3 --
+push 7
+; -- ADD --
+pop rbx
 pop rax
-pop rdi
-pop rsi
-pop rdx
-syscall
+add rax, rbx
 push rax
-; -- PROC END --
-; - return - 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-ret
-; - skip -
-_Addr3:
-; -- CALL PROC -- 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-call _Proc2
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
-; -- CALL PROC -- 
-mov rax, rsp
-mov rsp, [RETURN_STACK_PTR]
-call _Proc3
-mov [RETURN_STACK_PTR], rsp
-mov rsp, rax
+; -- PUSH --
+push 3
+; -- ADD --
+pop rbx
+pop rax
+add rax, rbx
+push rax
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- PUSH --
+push 5
+; -- PUSH --
+push 7
+; -- PUSH --
+push 3
+; -- ADD --
+pop rbx
+pop rax
+add rax, rbx
+push rax
+; -- ADD --
+pop rbx
+pop rax
+add rax, rbx
+push rax
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- PUSH --
+push 19
+; -- PUSH --
+push 4
+; -- MODIV --
+pop rbx
+pop rax
+xor rdx, rdx
+div rbx
+push rdx
+push rax
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- DUMP --
+pop rdi
+call dump_uint
+; -- PUSH --
+push 3
+; -- PUSH --
+push 1
+; -- SUB --
+pop rbx
+pop rax
+sub rax, rbx
+push rax
+; -- MUL --
+pop rbx
+pop rax
+mul rbx
+push rax
+; -- PUSH --
+push 100
+; -- DUMP --
+pop rdi
+call dump_uint
 
 mov rdi, 0
 mov rax, 60
@@ -151,8 +127,6 @@ syscall
 ; -- CONST DATA --
 segment readable
 
-CONST_STRING_1 db "test.ket", 0
-CONST_STRING_1_LEN = $ - CONST_STRING_1 - 1
 
 
 ; -- MUTABLE DATA --
