@@ -1,1 +1,10 @@
-main
+kette
+
+examples/arithmetic
+examples/controlflow
+examples/controlflow.asm
+examples/arithmetic.asm
+examples/files
+examples/files.asm
+examples/fizzbuzz
+examples/fizzbuzz.asm

@@ -14,6 +14,9 @@
 : ProtRead      in 1    ;
 : ProtWrite     in 2    ;
 
+: MapFile       in 0    ;
+: MapPrivate    in 2    ;
+
 : SeekSet       in 0    ;
 : SeekCurrent   in 1    ;
 : SeekEnd       in 2    ;
@@ -22,18 +25,18 @@
 : StdOut        in 1    ;
 : StdErr        in 2    ;
 
-: file-write //( len(str) ptr(str) fd -- )// in SysWrite syscall3 drop ;
+: file-write //( len ptr fd -- )// in SysWrite syscall3 drop ;
 
-: print-string //( len(str) ptr(str) -- )// in StdOut file-write ; 
+: print-string //( len ptr -- )// in StdOut file-write ; 
 
-: file-desc-open //( mode flags ptr(str) -- fd )// in SysOpen syscall3 ;
+: file-desc-open //( mode flags ptr -- fd )// in SysOpen syscall3 ;
 
-: file-get-len //( ptr(fd) -- len )// in 
+: file-get-len //( fd -- len )// in 
     SeekEnd 0 rot // fd o 0  -> o 0 fd //
     SysLSeek syscall3 
 ;
 
-: file-open //( len(str) ptr(str) flags -- fd )// in
+: file-open //( len ptr flags -- fd )// in
     0 2swap // l p f 0 -> f 0 l p //
     swap drop // f 0 l p -> f 0 p //
     rot // f 0 p -> 0 p f //
@@ -41,5 +44,14 @@
     file-desc-open 
 ;
 
-"test.txt" OpRead file-open dup file-get-len swap print-string
+: file-alloc //( fd, len -- ptr )// in
+    0 rot rot // fd len 0 -> len 0 fd  -> 0 fd len //
+    MapPrivate swap // 0 fd MP l //
+    ProtRead swap // 0 fd MP PR l//
+    0 SysMMap // 0 fd MP PR l 0 sysMMap //
+    syscall6
+;
 
+"test.txt" OpRead file-open dup file-get-len 2dup file-alloc // len ptr //
+over 30 - over 10 +
+print-string

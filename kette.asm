@@ -94,8 +94,9 @@ entry $
     push    rax ; ptr file mem  | rbp - 8
     push    rdx ; len file mem  | rbp - 16
     
-    xor     rax, rax
+    mov     rax, 1
     push    rax ; line counter  | rbp - 24
+    xor     rax, rax
     push    rax ; col counter   | rbp - 32
     push    rax ; offset        | rbp - 40
 
@@ -812,7 +813,7 @@ entry $
     
 
     ; allocate memory
-    mov     rdi, 4096
+    mov     rdi, 8192
     call    map_memory
     push    rax ; [rbp - 120] = ptr | output file
     push    rdi ; [rbp - 128] = len | output file
@@ -1560,7 +1561,6 @@ entry $
             jz      .output_proc_call
             cmp     BYTE [r13 + rbx + 9], varIdentIgnore
             jz      .output_jmp_end
-          
             ; TODO: use this to detect identifiers without decl
             jmp     error_illegal
 
