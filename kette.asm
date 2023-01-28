@@ -2,6 +2,11 @@ format ELF64 executable 3
 
 include "linux.inc"
 
+GROW_SIZE = 2
+PAGE1_BYTES = 4096
+PAGE2_BYTES = 8192
+PAGE4_BYTES = 16384
+
 ; Tokens
 tkNoOp      = 0
 tkAdd       = 1
@@ -99,7 +104,6 @@ entry $
     xor     rax, rax
     push    rax ; col counter   | rbp - 32
     push    rax ; offset        | rbp - 40
-
 
     ; allocate memory for token loop
     mov     rdi, 8192
@@ -553,6 +557,67 @@ entry $
             mov     QWORD [rdi + rbx + 9], rax
 
         .end_word:
+
+        ; - BUFFER TOKEN GROW -
+        mov     rax, [rbp - 56] ; current max
+        mov     rcx, 2 ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     rbx, rax 
+        jg      .grow_token_buffer
+        jmp     .not_grow_token_buffer
+        .grow_token_buffer:
+        mov     rdi, [rbp - 48]
+        mov     rsi, [rbp - 56]
+        mov     rax, rsi
+        mov     rcx, 2
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [rbp - 48], rax
+        mov     [rbp - 56], rdx
+        .not_grow_token_buffer:
+
+        ; - BUFFER STRING GROW -
+        mov     rax, [rbp - 72] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     [rbp - 80], rax 
+        jg      .grow_string_buffer
+        jmp     .not_grow_string_buffer
+        .grow_string_buffer:
+        mov     rdi, [rbp - 64]
+        mov     rsi, [rbp - 72]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [rbp - 64], rax
+        mov     [rbp - 72], rdx
+        .not_grow_string_buffer:
+
+        ; - BUFFER PROC GROW -
+        mov     rax, [rbp - 104] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     [rbp - 112], rax 
+        jg      .grow_proc_buffer
+        jmp     .not_grow_proc_buffer
+        .grow_proc_buffer:
+        mov     rdi, [rbp - 96]
+        mov     rsi, [rbp - 104]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [rbp - 96], rax
+        mov     [rbp - 104], rdx
+        .not_grow_proc_buffer:
+
         add     rbx, 32  
         jmp     .token_loop
 
@@ -578,7 +643,6 @@ entry $
  
     mov     rax, [rbp - 48]
     lea     r13, [rax]  ; token file ptr
- 
     ; Cross Referencing control flows & detect missing
     xor     rbx, rbx
     xor     r14, r14; Count the stack size to find errors
@@ -811,9 +875,8 @@ entry $
         cmp     rbx, r12
         jnz     .loop_find_function_calls
     
-
     ; allocate memory
-    mov     rdi, 8192
+    mov     rdi, PAGE4_BYTES
     call    map_memory
     push    rax ; [rbp - 120] = ptr | output file
     push    rdi ; [rbp - 128] = len | output file
@@ -827,14 +890,15 @@ entry $
     lea     r13, [rax]  ; token file ptr
     mov     rax, [rbp - 120]
     lea     r14, [rax]  ; output file ptr
-
     lea     rdi, [r14 + r15]
     mov     rsi, ASM_HEADER
     mov     rdx, ASM_HEADER_LEN
     call    mem_move
     add     r15, ASM_HEADER_LEN
-
     .loop_bytecode_to_asm:
+        mov     rax, [rbp - 120]
+        lea     r14, [rax]
+
         cmp     BYTE [r13 + rbx], tkPushInt
         jz      .output_push_int
         
@@ -1670,8 +1734,28 @@ entry $
             add     r15, ASM_SYS6_LEN
             jmp     .output_jmp_end
 
-
         .output_jmp_end:
+
+        ; - BUFFER OUTPUT GROW -
+        mov     rax, [rbp - 128] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     r15, rax 
+        jg      .grow_output_buffer
+        jmp     .not_grow_output_buffer
+        .grow_output_buffer:
+        mov     rdi, [rbp - 120]
+        mov     rsi, [rbp - 128]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [rbp - 120], rax
+        mov     [rbp - 128], rdx
+        .not_grow_output_buffer:
+
         add rbx, 32
         cmp rbx, r12
         jnz .loop_bytecode_to_asm
@@ -1688,7 +1772,6 @@ entry $
     mov     rdx, ASM_CONST_DATA_SECTION_LEN
     call    mem_move
     add     r15, ASM_CONST_DATA_SECTION_LEN
-
     ; CONST DATA:
     xor     rbx, rbx ; counter inc in 24
     mov     rax, [rbp - 64] ; ptr string mem
@@ -1805,7 +1888,6 @@ entry $
     xor     rdx, rdx
     mov     rax, SYS_OPEN
     syscall
-
     ; write assembly
     mov     rdi, rax
     mov     rsi, [rbp - 120]
@@ -1825,6 +1907,7 @@ entry $
 
     mov     rsp, rbp
     pop     rbp
+
 
     mov     rdi, 0
     mov     rax, SYS_EXIT
@@ -2422,6 +2505,7 @@ segment readable writable
     arg_ptr rq 1
 
 segment readable
+
 ; ERRORS
 err0        db  "File not found"
 err0len     =   $ - err0
