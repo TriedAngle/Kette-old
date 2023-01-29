@@ -34,9 +34,19 @@
 			]
 		},
 		"comments": {
-			"name": "comment.kette",
-			"begin": "//",
-			"end": "//"
+			"patterns": [
+				{
+					"name": "comment.line.kette",
+					"begin": "//",
+					"end": "\n"
+				},
+				{
+					"name": "comment.manual.kette",
+					"begin": "//",
+					"end": "//"
+				}
+
+			]
 		},
 		"numerics": {
 			"patterns": [
