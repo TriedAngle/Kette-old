@@ -56,11 +56,12 @@ Concatenative Stack-Based Programming Language
 - TODO: currently numbers are expected at the end -> change that and do symbols instead
 
 ### 2. Token Format
-a single token is 32 bytes long and structured the following:
+a single token is 40 bytes long and structured the following:
 1. [1b] token kind
-2. [4b] line
-3. [4b] column
-4. [23b] data
+2. [4b] file
+3. [4b] line
+4. [4b] column
+5. [27b] data
 
 #### Notes
 - index 9 may be used for subvariance that may be detected for some tokens later
@@ -138,6 +139,6 @@ syscalls may override:
 2. rsi
 3. rdx
 4. r10
-5. r18
+5. r8
 6. r9
 7. rax | which sycall

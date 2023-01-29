@@ -60,6 +60,8 @@ tkSys6      = 41
 tkBitAnd    = 42
 tkBitOr     = 43
 
+
+tkInclude   = 254 ; this is a temporary keyword, include will be replaced with `use` which behaves similar but doens't include the whole file / elimanates unused code
 tkExit      = 255
 
 
@@ -91,537 +93,599 @@ entry $
     push    rbp
     mov     rbp, rsp
 
+    xor     r12, r12
+
+    lea     r15, [rbp - 8]
+    ; allocate memory for token
+    mov     rdi, PAGE2_BYTES
+    call    map_memory
+    push    rax ; ptr token mem | r15 - 0
+    push    rdi ; len token mem | r15 - 8
+    push    r12 ; off token mem | r15 - 16
+    ; allocate memory for strings
+    mov     rdi, PAGE1_BYTES
+    call    map_memory
+    push    rax ; ptr string mem | r15 - 24
+    push    rdi ; len string mem | r15 - 32
+    push    r12 ; off string mem | r15 - 40
+    ; allocate memory for procs
+    mov     rdi, PAGE1_BYTES
+    call    map_memory
+    push    rax ; ptr proc mem | r15 - 48
+    push    rdi ; len proc mem | r15 - 56
+    push    r12 ; off proc mem | r15 - 64
+    ; allocate memory for includes
+    mov     rdi, PAGE1_BYTES
+    call    map_memory
+    push    rax ; ptr incl mem | r15 - 72
+    push    rdi ; len incl mem | r15 - 80
+    push    r12 ; off incl mem | r15 - 88
+    push    r12 ; cur incl mem | r15 - 96
+
+    mov     rdi, PAGE1_BYTES
+    call    map_memory
+    push    rax ; ptr proc mem | r15 - 104
+    push    rdi ; len proc mem | r15 - 112
+    push    r12 ; off proc mem | r15 - 120
+
+    xor     rax, rax
+    push    rax ; counter string | r15 - 128
+    push    rax ; counter proc   | r15 - 136
+    push    rax ; counter var    | r15 - 144
+
+    ; put in first file
     mov     rdi, [arg_ptr]
     mov     rdi, [rdi + 8]
-    call    open_file
+    call    strlen
+    lea     rbx, [r15 - 72]
+    mov     QWORD [rbx + 0], 0
+    mov     [rbx + 8], rax
+    mov     [rbx + 16], rdi
 
-    lea     r12, [rsp] ; "base pointer"
-    push    rax ; ptr file mem  | rbp - 8
-    push    rdx ; len file mem  | rbp - 16
-    
-    mov     rax, 1
-    push    rax ; line counter  | rbp - 24
-    xor     rax, rax
-    push    rax ; col counter   | rbp - 32
-    push    rax ; offset        | rbp - 40
-
-    ; allocate memory for token loop
-    mov     rdi, 8192
-    call    map_memory
-    
-    push    rax ; ptr token mem | rbp - 48
-    push    rdi ; len token mem | rbp - 56
-
-    ; allocate memory for strings
-    mov     rdi, 2048
-    call    map_memory
-
-    push    rax ; ptr string mem | rbp - 64
-    push    rdi ; len string mem | rbp - 72
-    xor     rbx, rbx
-    push    rbx ; offset string mem | rbp - 80
-    mov     rbx, 1
-    push    rbx ; string & proc counter | rbp - 88
-
-    ; allocate memory for procs
-    mov     rdi, 2048
-    call    map_memory
-    
-    push    rax ; ptr proc mem | rbp - 96
-    push    rdi ; len proc mem | rbp - 104
-    xor     rbx, rbx
-    push    rbx ; offset proc mem | rbp - 112
-    xor     rbx, rbx ; tokenspace offset
-    .token_loop:
-        mov     rdi, r12
-        call    next_string
-        ; rax = ptr sub string | 0 = reached end
-        ; rdx = len sub string
+    .tokenize_all:
+        mov     rdi, r15
+        call    tokenize_file
         cmp     rax, 0
-        jz      .exit_token_loop;
-        mov     r13, rax ; ptr sub string
-        mov     r14, rdx ; len sub string
+        jz      .tokenize_all_end
+        jmp     .tokenize_all
+    .tokenize_all_end:
+
+    mov     rdi, 0
+    mov     rax, SYS_EXIT
+    syscall
+
+
+    ; mov     rdi, [arg_ptr]
+    ; mov     rdi, [rdi + 8]
+    ; call    open_file
+
+    ; lea     r12, [rsp] ; "base pointer"
+    ; push    rax ; ptr file mem  | rbp - 8
+    ; push    rdx ; len file mem  | rbp - 16
+    
+    ; mov     rax, 1
+    ; push    rax ; line counter  | rbp - 24
+    ; xor     rax, rax
+    ; push    rax ; col counter   | rbp - 32
+    ; push    rax ; offset        | rbp - 40
+
+    ; ; allocate memory for token loop
+    ; mov     rdi, 8192
+    ; call    map_memory
+    
+    ; push    rax ; ptr token mem | rbp - 48
+    ; push    rdi ; len token mem | rbp - 56
+
+    ; ; allocate memory for strings
+    ; mov     rdi, 2048
+    ; call    map_memory
+
+    ; push    rax ; ptr string mem | rbp - 64
+    ; push    rdi ; len string mem | rbp - 72
+    ; xor     rbx, rbx
+    ; push    rbx ; offset string mem | rbp - 80
+    ; mov     rbx, 1
+    ; push    rbx ; string & proc counter | rbp - 88
+
+    ; ; allocate memory for procs
+    ; mov     rdi, 2048
+    ; call    map_memory
+    ; push    rax ; ptr proc mem | rbp - 96
+    ; push    rdi ; len proc mem | rbp - 104
+
+    ; xor     rbx, rbx
+    ; push    rbx ; offset proc mem | rbp - 112
+    ; xor     rbx, rbx ; tokenspace offset
+    ; .token_loop:
+    ;     mov     rdi, r12
+    ;     ; call    next_string
+    ;     ; rax = ptr sub string | 0 = reached end
+    ;     ; rdx = len sub string
+    ;     cmp     rax, 0
+    ;     jz      .exit_token_loop;
+    ;     mov     r13, rax ; ptr sub string
+    ;     mov     r14, rdx ; len sub string
        
-        mov     r15, -1
-        ; checking for symbol
-        ; cmov does not support consts lol, x86-64 moment!
-        ; rax is used as an intermediate register bc of that
-        ; this looks a bit dirty, but avoids branching :)
+    ;     mov     r15, -1
+    ;     ; checking for symbol
+    ;     ; cmov does not support consts lol, x86-64 moment!
+    ;     ; rax is used as an intermediate register bc of that
+    ;     ; this looks a bit dirty, but avoids branching :)
 
-        ; checking length is a smol hacc but it works for now XD
-        ; if no check, identifiers that start with those symbols
-        ; will be wrongfully parsed as that symbol
-        cmp     r14, 1
-        jnz     .check_symbol_len2
+    ;     ; checking length is a smol hacc but it works for now XD
+    ;     ; if no check, identifiers that start with those symbols
+    ;     ; will be wrongfully parsed as that symbol
+    ;     cmp     r14, 1
+    ;     jnz     .check_symbol_len2
 
-        mov     rax, tkAdd
-        cmp     BYTE [r13], "+"
-        cmovz   r15, rax
+    ;     mov     rax, tkAdd
+    ;     cmp     BYTE [r13], "+"
+    ;     cmovz   r15, rax
 
-        mov     rax, tkSub
-        cmp     BYTE [r13], "-"
-        cmovz   r15, rax
+    ;     mov     rax, tkSub
+    ;     cmp     BYTE [r13], "-"
+    ;     cmovz   r15, rax
         
-        mov     rax, tkMul
-        cmp     BYTE [r13], "*"
-        cmovz   r15, rax
+    ;     mov     rax, tkMul
+    ;     cmp     BYTE [r13], "*"
+    ;     cmovz   r15, rax
         
-        mov     rax, tkDiv
-        cmp     BYTE [r13], "/"
-        cmovz   r15, rax
+    ;     mov     rax, tkDiv
+    ;     cmp     BYTE [r13], "/"
+    ;     cmovz   r15, rax
 
-        mov     rax, tkMod
-        cmp     BYTE [r13], "%"
-        cmovz   r15, rax
+    ;     mov     rax, tkMod
+    ;     cmp     BYTE [r13], "%"
+    ;     cmovz   r15, rax
         
-        mov     rax, tkDump
-        cmp     BYTE [r13], "."
-        cmovz   r15, rax
+    ;     mov     rax, tkDump
+    ;     cmp     BYTE [r13], "."
+    ;     cmovz   r15, rax
 
-        mov     rax, tkEqual
-        cmp     BYTE [r13], "="
-        cmovz   r15, rax
+    ;     mov     rax, tkEqual
+    ;     cmp     BYTE [r13], "="
+    ;     cmovz   r15, rax
 
-        mov     rax, tkGreater
-        cmp     BYTE [r13], ">"
-        cmovz   r15, rax
+    ;     mov     rax, tkGreater
+    ;     cmp     BYTE [r13], ">"
+    ;     cmovz   r15, rax
 
-        mov     rax, tkLesser
-        cmp     BYTE [r13], "<"
-        cmovz   r15, rax
+    ;     mov     rax, tkLesser
+    ;     cmp     BYTE [r13], "<"
+    ;     cmovz   r15, rax
        
-        mov     rax, tkBitAnd
-        cmp     BYTE [r13], "&"
+    ;     mov     rax, tkBitAnd
+    ;     cmp     BYTE [r13], "&"
 
-        mov     rax, tkBitOr
-        cmp     BYTE [r13], "|"
+    ;     mov     rax, tkBitOr
+    ;     cmp     BYTE [r13], "|"
 
-        mov     rax, tkProc
-        cmp     BYTE [r13], ":"
-        cmovz   r15, rax
-        jz      .finalize_keyword_simple
+    ;     mov     rax, tkProc
+    ;     cmp     BYTE [r13], ":"
+    ;     cmovz   r15, rax
+    ;     jz      .finalize_keyword_simple
 
-        mov     rax, tkEnd
-        cmp     BYTE [r13], ";"
-        cmovz   r15, rax
-        jz      .finalize_keyword_simple
+    ;     mov     rax, tkEnd
+    ;     cmp     BYTE [r13], ";"
+    ;     cmovz   r15, rax
+    ;     jz      .finalize_keyword_simple
 
-        .check_symbol_len2:
-        cmp     r14, 2
-        jnz     .not_symbol_len3
+    ;     .check_symbol_len2:
+    ;     cmp     r14, 2
+    ;     jnz     .not_symbol_len3
 
-        mov     rax, tkGEqual
-        cmp     WORD [r13], ">="
-        cmovz   r15, rax
+    ;     mov     rax, tkGEqual
+    ;     cmp     WORD [r13], ">="
+    ;     cmovz   r15, rax
 
-        mov     rax, tkLEqual
-        cmp     WORD [r13], "<="
-        cmovz   r15, rax
+    ;     mov     rax, tkLEqual
+    ;     cmp     WORD [r13], "<="
+    ;     cmovz   r15, rax
 
-        mov     rax, tkModiv
-        cmp     WORD [r13], "/%"
-        cmovz   r15, rax
+    ;     mov     rax, tkModiv
+    ;     cmp     WORD [r13], "/%"
+    ;     cmovz   r15, rax
 
-        .not_symbol_len3:
-        ; skip comments
-        cmp     WORD [r13], "//"
-        jz      .end_word
+    ;     .not_symbol_len3:
+    ;     ; skip comments
+    ;     cmp     WORD [r13], "//"
+    ;     jz      .end_word
 
-        cmp     BYTE [r13], 34  ; strings are already "checked" in word generation
-        jz      .finalize_string
+    ;     cmp     BYTE [r13], 34  ; strings are already "checked" in word generation
+    ;     jz      .finalize_string
 
-        ; if opcode was set (so not -1), jump to symbol handling
-        ; if opcode was not set, continue checking what it is
-        cmp     r15, -1
-        jnz     .finalize_symbol
-        jmp     .no_symbol
+    ;     ; if opcode was set (so not -1), jump to symbol handling
+    ;     ; if opcode was not set, continue checking what it is
+    ;     cmp     r15, -1
+    ;     jnz     .finalize_symbol
+    ;     jmp     .no_symbol
 
     
-        .finalize_string:
-        mov     rdi, [rbp - 48]
-        mov     BYTE [rdi + rbx], tkPushStr
-        mov     eax, DWORD [rbp - 24]
-        mov     r8d, DWORD [rbp - 32]
-        mov     DWORD [rdi + rbx + 1], eax
-        mov     DWORD [rdi + rbx + 5], r8d
-        ; skip "
-        mov     r8, r14
-        lea     rax, [r13]
+    ;     .finalize_string:
+    ;     mov     rdi, [rbp - 48]
+    ;     mov     BYTE [rdi + rbx], tkPushStr
+    ;     mov     eax, DWORD [rbp - 24]
+    ;     mov     r8d, DWORD [rbp - 32]
+    ;     mov     DWORD [rdi + rbx + 1], eax
+    ;     mov     DWORD [rdi + rbx + 5], r8d
+    ;     ; skip "
+    ;     mov     r8, r14
+    ;     lea     rax, [r13]
 
-        mov     rcx, [rbp - 64] ; ptr string mem
-        mov     rdx, [rbp - 104] ; string mem offset
+    ;     mov     rcx, [rbp - 64] ; ptr string mem
+    ;     mov     rdx, [rbp - 104] ; string mem offset
         
-        mov     rdx, QWORD [rbp - 80]
-        mov     r10, QWORD [rbp - 88]
+    ;     mov     rdx, QWORD [rbp - 80]
+    ;     mov     r10, QWORD [rbp - 88]
         
-        mov     QWORD [rdi + rbx + 9], r10 ; string id
+    ;     mov     QWORD [rdi + rbx + 9], r10 ; string id
 
-        mov     QWORD [rcx + rdx], r10 ; string id
-        mov     QWORD [rcx + rdx + 8], r8 ; string len
-        mov     QWORD [rcx + rdx + 16], rax ; ptr string
+    ;     mov     QWORD [rcx + rdx], r10 ; string id
+    ;     mov     QWORD [rcx + rdx + 8], r8 ; string len
+    ;     mov     QWORD [rcx + rdx + 16], rax ; ptr string
         
-        add     QWORD [rbp - 80], 24
-        inc     QWORD [rbp - 88]
+    ;     add     QWORD [rbp - 80], 24
+    ;     inc     QWORD [rbp - 88]
 
-        jmp     .end_word
+    ;     jmp     .end_word
 
 
-        .finalize_symbol:
-        mov     rdi, [rbp - 48] ; ptr of token memory
-        mov     BYTE [rdi + rbx], r15b
-        mov     eax, DWORD [rbp - 24]
-        mov     r8d, DWORD [rbp - 32]
-        mov     DWORD [rdi + rbx + 1], eax
-        mov     DWORD [rdi + rbx + 5], r8d
-        jmp     .end_word
+    ;     .finalize_symbol:
+    ;     mov     rdi, [rbp - 48] ; ptr of token memory
+    ;     mov     BYTE [rdi + rbx], r15b
+    ;     mov     eax, DWORD [rbp - 24]
+    ;     mov     r8d, DWORD [rbp - 32]
+    ;     mov     DWORD [rdi + rbx + 1], eax
+    ;     mov     DWORD [rdi + rbx + 5], r8d
+    ;     jmp     .end_word
 
-        .no_symbol:
-        ; checking for keyword
+    ;     .no_symbol:
+    ;     ; checking for keyword
         
        
-        mov     rdi, r13
-        lea     rsi, [KEY_DUP]
-        mov     rdx, KEY_DUP_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkDup
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_DUP]
+    ;     mov     rdx, KEY_DUP_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkDup
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SWAP]
-        mov     rdx, KEY_SWAP_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSwap
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SWAP]
+    ;     mov     rdx, KEY_SWAP_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSwap
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_ROT]
-        mov     rdx, KEY_ROT_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkRot
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_ROT]
+    ;     mov     rdx, KEY_ROT_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkRot
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_OVER]
-        mov     rdx, KEY_OVER_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkOver
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_OVER]
+    ;     mov     rdx, KEY_OVER_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkOver
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_DROP]
-        mov     rdx, KEY_DROP_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkDrop
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_DROP]
+    ;     mov     rdx, KEY_DROP_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkDrop
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_2DUP]
-        mov     rdx, KEY_2DUP_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tk2Dup
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_2DUP]
+    ;     mov     rdx, KEY_2DUP_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tk2Dup
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_2SWAP]
-        mov     rdx, KEY_2SWAP_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tk2Swap
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_2SWAP]
+    ;     mov     rdx, KEY_2SWAP_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tk2Swap
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_2DROP]
-        mov     rdx, KEY_2DROP_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tk2Drop
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_2DROP]
+    ;     mov     rdx, KEY_2DROP_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tk2Drop
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_AND]
-        mov     rdx, KEY_AND_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkAnd
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_AND]
+    ;     mov     rdx, KEY_AND_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkAnd
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_OR]
-        mov     rdx, KEY_OR_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkOr
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_OR]
+    ;     mov     rdx, KEY_OR_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkOr
+    ;     jz      .finalize_keyword_simple
         
-        mov     rdi, r13
-        lea     rsi, [KEY_IF]
-        mov     rdx, KEY_IF_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkIf
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_IF]
+    ;     mov     rdx, KEY_IF_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkIf
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_THEN]
-        mov     rdx, KEY_THEN_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkThen
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_THEN]
+    ;     mov     rdx, KEY_THEN_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkThen
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_ELSE]
-        mov     rdx, KEY_ELSE_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkElse
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_ELSE]
+    ;     mov     rdx, KEY_ELSE_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkElse
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_WHILE]
-        mov     rdx, KEY_WHILE_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkWhile
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_WHILE]
+    ;     mov     rdx, KEY_WHILE_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkWhile
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_DO]
-        mov     rdx, KEY_DO_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkDo
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_DO]
+    ;     mov     rdx, KEY_DO_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkDo
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_PROC]
-        mov     rdx, KEY_PROC_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkProc
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_PROC]
+    ;     mov     rdx, KEY_PROC_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkProc
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_IN]
-        mov     rdx, KEY_IN_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkIn
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_IN]
+    ;     mov     rdx, KEY_IN_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkIn
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_END]
-        mov     rdx, KEY_END_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkEnd
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_END]
+    ;     mov     rdx, KEY_END_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkEnd
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SYS0]
-        mov     rdx, KEY_SYS0_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSys0
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SYS0]
+    ;     mov     rdx, KEY_SYS0_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSys0
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SYS1]
-        mov     rdx, KEY_SYS1_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSys1
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SYS1]
+    ;     mov     rdx, KEY_SYS1_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSys1
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SYS2]
-        mov     rdx, KEY_SYS2_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSys2
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SYS2]
+    ;     mov     rdx, KEY_SYS2_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSys2
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SYS3]
-        mov     rdx, KEY_SYS3_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSys3
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SYS3]
+    ;     mov     rdx, KEY_SYS3_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSys3
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SYS4]
-        mov     rdx, KEY_SYS4_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSys4
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SYS4]
+    ;     mov     rdx, KEY_SYS4_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSys4
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SYS5]
-        mov     rdx, KEY_SYS5_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSys5
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SYS5]
+    ;     mov     rdx, KEY_SYS5_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSys5
+    ;     jz      .finalize_keyword_simple
 
-        mov     rdi, r13
-        lea     rsi, [KEY_SYS6]
-        mov     rdx, KEY_SYS6_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     r15, tkSys6
-        jz      .finalize_keyword_simple
+    ;     mov     rdi, r13
+    ;     lea     rsi, [KEY_SYS6]
+    ;     mov     rdx, KEY_SYS6_LEN
+    ;     call    mem_cmp
+    ;     cmp     rax, 1
+    ;     mov     r15, tkSys6
+    ;     jz      .finalize_keyword_simple
         
 
-        jmp     .no_keyword
+    ;     jmp     .no_keyword
         
-        .finalize_keyword_simple:
-        mov     rdi, [rbp - 48]
-        mov     BYTE [rdi + rbx], r15b
-        mov     eax, DWORD [rbp - 24]
-        mov     r8d, DWORD [rbp - 32]
-        mov     DWORD [rdi + rbx + 1], eax
-        mov     DWORD [rdi + rbx + 5], r8d
-        mov     QWORD [rdi + rbx + 9], 0
-        mov     QWORD [rdi + rbx + 17], 0
-        mov     WORD [rdi + rbx + 25], 0
+    ;     .finalize_keyword_simple:
+    ;     mov     rdi, [rbp - 48]
+    ;     mov     BYTE [rdi + rbx], r15b
+    ;     mov     eax, DWORD [rbp - 24]
+    ;     mov     r8d, DWORD [rbp - 32]
+    ;     mov     DWORD [rdi + rbx + 1], eax
+    ;     mov     DWORD [rdi + rbx + 5], r8d
+    ;     mov     QWORD [rdi + rbx + 9], 0
+    ;     mov     QWORD [rdi + rbx + 17], 0
+    ;     mov     WORD [rdi + rbx + 25], 0
 
-        jmp     .end_word   
+    ;     jmp     .end_word   
 
-        .no_keyword:
+    ;     .no_keyword:
 
         
-        ; check if number
-        xor     rcx, rcx
-        xor     rax, rax
-        .check_if_number_loop:
-            cmp     BYTE [r13 + rcx], "0"
-            jl      .parse_not_number
+    ;     ; check if number
+    ;     xor     rcx, rcx
+    ;     xor     rax, rax
+    ;     .check_if_number_loop:
+    ;         cmp     BYTE [r13 + rcx], "0"
+    ;         jl      .parse_not_number
 
-            cmp     BYTE [r13 + rcx], "_"
-            jz      .check_if_number_loop_next
+    ;         cmp     BYTE [r13 + rcx], "_"
+    ;         jz      .check_if_number_loop_next
 
-            cmp     BYTE [r13 + rcx], "9"
-            jg      .parse_not_number
+    ;         cmp     BYTE [r13 + rcx], "9"
+    ;         jg      .parse_not_number
 
-            .check_if_number_loop_next:
-            inc     rcx
-            cmp     rcx, r14
-            jz      .parse_number
-            jmp     .check_if_number_loop
+    ;         .check_if_number_loop_next:
+    ;         inc     rcx
+    ;         cmp     rcx, r14
+    ;         jz      .parse_number
+    ;         jmp     .check_if_number_loop
 
-        .parse_not_number:
-        mov     rdi, [rbp - 48]
-        mov     BYTE [rdi + rbx], tkIdent
-        mov     r8d, DWORD [rbp - 24]
-        mov     r9d, DWORD [rbp - 32]
-        mov     DWORD [rdi + rbx + 1], r8d
-        mov     DWORD [rdi + rbx + 5], r9d
-        mov     BYTE  [rdi + rbx + 9], 0
-        mov     QWORD [rdi + rbx + 10], r13 ; ptr start
-        mov     QWORD [rdi + rbx + 18], r14 ; length
+    ;     .parse_not_number:
+    ;     mov     rdi, [rbp - 48]
+    ;     mov     BYTE [rdi + rbx], tkIdent
+    ;     mov     r8d, DWORD [rbp - 24]
+    ;     mov     r9d, DWORD [rbp - 32]
+    ;     mov     DWORD [rdi + rbx + 1], r8d
+    ;     mov     DWORD [rdi + rbx + 5], r9d
+    ;     mov     BYTE  [rdi + rbx + 9], 0
+    ;     mov     QWORD [rdi + rbx + 10], r13 ; ptr start
+    ;     mov     QWORD [rdi + rbx + 18], r14 ; length
         
-        jmp     .end_word
+    ;     jmp     .end_word
 
-        .parse_number:
-        xor     rax, rax ; number
-        xor     rcx, rcx ; digit counter
-        xor     rdi, rdi ; ascii translation 
-        mov     r8 , 10
-        .parse_number_loop:
-            mul     r8
-            mov     dil, BYTE [r13 + rcx]
-            sub     dil, 48 
-            add     rax, rdi
-            inc     rcx
-            cmp     rcx, r14
-            ; TODO: check for number only whitespace sep,
-            ; error on 47<x<57
-            jz      .finish_number
-            jmp     .parse_number_loop
+    ;     .parse_number:
+    ;     xor     rax, rax ; number
+    ;     xor     rcx, rcx ; digit counter
+    ;     xor     rdi, rdi ; ascii translation 
+    ;     mov     r8 , 10
+    ;     .parse_number_loop:
+    ;         mul     r8
+    ;         mov     dil, BYTE [r13 + rcx]
+    ;         sub     dil, 48 
+    ;         add     rax, rdi
+    ;         inc     rcx
+    ;         cmp     rcx, r14
+    ;         ; TODO: check for number only whitespace sep,
+    ;         ; error on 47<x<57
+    ;         jz      .finish_number
+    ;         jmp     .parse_number_loop
         
-        .finish_number:
-            mov     rdi, [rbp - 48] ; ptr of token memory
-            mov     BYTE [rdi + rbx], tkPushInt
-            mov     r8d, DWORD [rbp - 24]
-            mov     r9d, DWORD [rbp - 32]
-            mov     DWORD [rdi + rbx + 1], r8d
-            mov     DWORD [rdi + rbx + 5], r9d
-            mov     QWORD [rdi + rbx + 9], rax
+    ;     .finish_number:
+    ;         mov     rdi, [rbp - 48] ; ptr of token memory
+    ;         mov     BYTE [rdi + rbx], tkPushInt
+    ;         mov     r8d, DWORD [rbp - 24]
+    ;         mov     r9d, DWORD [rbp - 32]
+    ;         mov     DWORD [rdi + rbx + 1], r8d
+    ;         mov     DWORD [rdi + rbx + 5], r9d
+    ;         mov     QWORD [rdi + rbx + 9], rax
 
-        .end_word:
+    ;     .end_word:
 
-        ; - BUFFER TOKEN GROW -
-        mov     rax, [rbp - 56] ; current max
-        mov     rcx, 2 ; divisor
-        xor     rdx, rdx ; rest
-        div     rcx ; rax => 50% of current
-        cmp     rbx, rax 
-        jg      .grow_token_buffer
-        jmp     .not_grow_token_buffer
-        .grow_token_buffer:
-        mov     rdi, [rbp - 48]
-        mov     rsi, [rbp - 56]
-        mov     rax, rsi
-        mov     rcx, 2
-        mul     rcx
-        mov     rdx, rax
-        call    remap_memory
-        mov     [rbp - 48], rax
-        mov     [rbp - 56], rdx
-        .not_grow_token_buffer:
+    ;     ; - BUFFER TOKEN GROW -
+    ;     mov     rax, [rbp - 56] ; current max
+    ;     mov     rcx, 2 ; divisor
+    ;     xor     rdx, rdx ; rest
+    ;     div     rcx ; rax => 50% of current
+    ;     cmp     rbx, rax 
+    ;     jg      .grow_token_buffer
+    ;     jmp     .not_grow_token_buffer
+    ;     .grow_token_buffer:
+    ;     mov     rdi, [rbp - 48]
+    ;     mov     rsi, [rbp - 56]
+    ;     mov     rax, rsi
+    ;     mov     rcx, 2
+    ;     mul     rcx
+    ;     mov     rdx, rax
+    ;     call    remap_memory
+    ;     mov     [rbp - 48], rax
+    ;     mov     [rbp - 56], rdx
+    ;     .not_grow_token_buffer:
 
-        ; - BUFFER STRING GROW -
-        mov     rax, [rbp - 72] ; current max
-        mov     rcx, GROW_SIZE ; divisor
-        xor     rdx, rdx ; rest
-        div     rcx ; rax => 50% of current
-        cmp     [rbp - 80], rax 
-        jg      .grow_string_buffer
-        jmp     .not_grow_string_buffer
-        .grow_string_buffer:
-        mov     rdi, [rbp - 64]
-        mov     rsi, [rbp - 72]
-        mov     rax, rsi
-        mov     rcx, GROW_SIZE
-        mul     rcx
-        mov     rdx, rax
-        call    remap_memory
-        mov     [rbp - 64], rax
-        mov     [rbp - 72], rdx
-        .not_grow_string_buffer:
+    ;     ; - BUFFER STRING GROW -
+    ;     mov     rax, [rbp - 72] ; current max
+    ;     mov     rcx, GROW_SIZE ; divisor
+    ;     xor     rdx, rdx ; rest
+    ;     div     rcx ; rax => 50% of current
+    ;     cmp     [rbp - 80], rax 
+    ;     jg      .grow_string_buffer
+    ;     jmp     .not_grow_string_buffer
+    ;     .grow_string_buffer:
+    ;     mov     rdi, [rbp - 64]
+    ;     mov     rsi, [rbp - 72]
+    ;     mov     rax, rsi
+    ;     mov     rcx, GROW_SIZE
+    ;     mul     rcx
+    ;     mov     rdx, rax
+    ;     call    remap_memory
+    ;     mov     [rbp - 64], rax
+    ;     mov     [rbp - 72], rdx
+    ;     .not_grow_string_buffer:
 
-        ; - BUFFER PROC GROW -
-        mov     rax, [rbp - 104] ; current max
-        mov     rcx, GROW_SIZE ; divisor
-        xor     rdx, rdx ; rest
-        div     rcx ; rax => 50% of current
-        cmp     [rbp - 112], rax 
-        jg      .grow_proc_buffer
-        jmp     .not_grow_proc_buffer
-        .grow_proc_buffer:
-        mov     rdi, [rbp - 96]
-        mov     rsi, [rbp - 104]
-        mov     rax, rsi
-        mov     rcx, GROW_SIZE
-        mul     rcx
-        mov     rdx, rax
-        call    remap_memory
-        mov     [rbp - 96], rax
-        mov     [rbp - 104], rdx
-        .not_grow_proc_buffer:
+    ;     ; - BUFFER PROC GROW -
+    ;     mov     rax, [rbp - 104] ; current max
+    ;     mov     rcx, GROW_SIZE ; divisor
+    ;     xor     rdx, rdx ; rest
+    ;     div     rcx ; rax => 50% of current
+    ;     cmp     [rbp - 112], rax 
+    ;     jg      .grow_proc_buffer
+    ;     jmp     .not_grow_proc_buffer
+    ;     .grow_proc_buffer:
+    ;     mov     rdi, [rbp - 96]
+    ;     mov     rsi, [rbp - 104]
+    ;     mov     rax, rsi
+    ;     mov     rcx, GROW_SIZE
+    ;     mul     rcx
+    ;     mov     rdx, rax
+    ;     call    remap_memory
+    ;     mov     [rbp - 96], rax
+    ;     mov     [rbp - 104], rdx
+    ;     .not_grow_proc_buffer:
 
-        add     rbx, 32  
-        jmp     .token_loop
+    ;     add     rbx, 32  
+    ;     jmp     .token_loop
 
-    .exit_token_loop:
+    ; .exit_token_loop:
   
     
     ;   rbx -> r12 | token mem effective len
@@ -1914,6 +1978,516 @@ entry $
     syscall
 
 
+; input
+;   rdi: data: [
+;           token: (ptr 0, len -8, offset -16),
+;           string: (ptr -24, len -32, offset -40)
+;           proc: (ptr -48, len -56, offset -64)
+;           include: (ptr -72, len -80, offset -88, current -96)
+;           variable: (ptr -104, len -112, offset -120)
+;           counter: (string: -128, proc: -136, var: -144)
+;           ]
+;   rsi:
+;   rdx:
+;   rcx:
+;    r8:
+;    r9:
+tokenize_file:
+    push    rbp
+    mov     rbp, rsp
+
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
+
+    mov     r15, rdi ; store pointer
+
+    ; -- open file --
+    lea     rdi, [r15 - 72] ; include ptr
+    mov     rdx, [r15 - 96] ; include offset
+    lea     rdi, [rdi + rdx]
+    mov     r13, [rdi + 8] ; len
+    mov     r12, [rdi + 16] ; ptr
+    ; - null terminated ... -
+    mov     rbx, r13
+    inc     rbx
+    sub     rsp, rbx
+    mov     rdi, rsp
+    mov     rsi, r12
+    mov     rdx, rbx
+    call    mem_move
+    
+    mov     rdi, rsp
+    call    open_file
+    add     rsp, rbx
+    
+    mov     r14, rsp
+    push    rax ; file string | - 8
+    push    rdx ; file len | - 16
+    mov     rax, 1
+    push    rax   ; line counter | - 24
+    push    rax   ; col counter | - 32 
+    mov     rax, 0
+    push    rax   ; offset | - 40
+
+    ; -- file opened -- ;
+    xor     rbx, rbx
+    .tokenize:
+        mov     rdi, r14
+        call    next_word
+        cmp     rax, 0
+        jz      .tokenize_end
+        mov     r12, rax ; ptr
+        mov     r13, rdx ; len
+        
+        mov     rcx, -1
+        ; checking for symbol
+        ; cmov does not support consts lol, x86-64 moment!
+        ; rax is used as an intermediate register bc of that
+        ; this looks a bit dirty, but avoids branching :)
+
+        ; checking length is a smol hacc but it works for now XD
+        ; if no check, identifiers that start with those symbols
+        ; will be wrongfully parsed as that symbol
+        cmp     r13, 1
+        jnz     .check_symbol_len2
+
+        mov     rax, tkAdd
+        cmp     BYTE [r12], "+"
+        cmovz   rcx, rax
+
+        mov     rax, tkSub
+        cmp     BYTE [r12], "-"
+        cmovz   rcx, rax
+        
+        mov     rax, tkMul
+        cmp     BYTE [r12], "*"
+        cmovz   rcx, rax
+        
+        mov     rax, tkDiv
+        cmp     BYTE [r12], "/"
+        cmovz   rcx, rax
+
+        mov     rax, tkMod
+        cmp     BYTE [r12], "%"
+        cmovz   rcx, rax
+        
+        mov     rax, tkDump
+        cmp     BYTE [r12], "."
+        cmovz   rcx, rax
+
+        mov     rax, tkEqual
+        cmp     BYTE [r12], "="
+        cmovz   rcx, rax
+
+        mov     rax, tkGreater
+        cmp     BYTE [r12], ">"
+        cmovz   rcx, rax
+
+        mov     rax, tkLesser
+        cmp     BYTE [r12], "<"
+        cmovz   rcx, rax
+       
+        mov     rax, tkBitAnd
+        cmp     BYTE [r12], "&"
+        cmovz   rcx, rax
+
+        mov     rax, tkBitOr
+        cmp     BYTE [r12], "|"
+        cmovz   rcx, rax
+
+        mov     rax, tkProc
+        cmp     BYTE [r12], ":"
+        cmovz   rcx, rax
+        jz      .finalize_keyword_simple
+
+        mov     rax, tkEnd
+        cmp     BYTE [r12], ";"
+        cmovz   rcx, rax
+        jz      .finalize_keyword_simple
+
+        .check_symbol_len2:
+        cmp     r14, 2
+        jnz     .not_symbol_len3
+
+        mov     rax, tkGEqual
+        cmp     WORD [r12], ">="
+        cmovz   rcx, rax
+
+        mov     rax, tkLEqual
+        cmp     WORD [r12], "<="
+        cmovz   rcx, rax
+
+        mov     rax, tkModiv
+        cmp     WORD [r12], "/%"
+        cmovz   rcx, rax
+
+        .not_symbol_len3:
+        ; skip comments
+        cmp     WORD [r12], "//"
+        jz      .tokenize_next
+
+        cmp     BYTE [r12], 34  ; strings are already "checked" in word generation
+        jz      .finalize_string
+
+        ; if opcode was set (so not -1), jump to symbol handling
+        ; if opcode was not set, continue checking what it is
+        cmp     r15, -1
+        jnz     .finalize_symbol
+        jmp     .no_symbol
+
+        .finalize_string:
+            mov     rdi, [r15]
+            mov     BYTE [rdi + rbx], tkPushStr
+            mov     eax, DWORD [r14 - 24]
+            mov     r8d, DWORD [r14 - 32]
+            mov     r9d, DWORD [r15 - 96] ; file id
+            mov     DWORD [rdi + rbx + 1], eax
+            mov     DWORD [rdi + rbx + 5], r8d
+            mov     DWORD [rdi + rbx + 9], r9d
+            ; skip "
+            mov     r8, r14
+            lea     rax, [r13]
+
+            mov     rcx, [r15 - 24] ; ptr string mem
+            mov     rdx, [r15 - 40] ; string mem offset
+            mov     r10, [r15 - 128] ; string counter
+            
+            mov     QWORD [rdi + rbx + 9], r10 ; string id
+
+            mov     QWORD [rcx + rdx], r10 ; string id
+            mov     QWORD [rcx + rdx + 8], r8 ; string len
+            mov     QWORD [rcx + rdx + 16], rax ; ptr string
+            
+            add     QWORD [r15 - 40], 24
+            inc     QWORD [r15 - 128]
+
+            jmp     .tokenize_next
+
+
+        .finalize_symbol:
+            mov     rdi, [r15] ; ptr of token memory
+            mov     BYTE [rdi + rbx], cl
+            mov     eax, DWORD [r14 - 24]
+            mov     r8d, DWORD [r14 - 32]
+            mov     r9d, DWORD [r15 - 96] ; file id
+            mov     DWORD [rdi + rbx + 1], eax
+            mov     DWORD [rdi + rbx + 5], r8d
+            mov     DWORD [rdi + rbx + 9], r9d
+            jmp     .tokenize_next
+
+        .no_symbol:
+        ; checking for keyword
+        
+       
+        mov     rdi, r12
+        lea     rsi, [KEY_DUP]
+        mov     rdx, KEY_DUP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkDup
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SWAP]
+        mov     rdx, KEY_SWAP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSwap
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_ROT]
+        mov     rdx, KEY_ROT_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkRot
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_OVER]
+        mov     rdx, KEY_OVER_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkOver
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_DROP]
+        mov     rdx, KEY_DROP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkDrop
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_2DUP]
+        mov     rdx, KEY_2DUP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tk2Dup
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_2SWAP]
+        mov     rdx, KEY_2SWAP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tk2Swap
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_2DROP]
+        mov     rdx, KEY_2DROP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tk2Drop
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_AND]
+        mov     rdx, KEY_AND_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkAnd
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_OR]
+        mov     rdx, KEY_OR_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkOr
+        jz      .finalize_keyword_simple
+        
+        mov     rdi, r12
+        lea     rsi, [KEY_IF]
+        mov     rdx, KEY_IF_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkIf
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_THEN]
+        mov     rdx, KEY_THEN_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkThen
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_ELSE]
+        mov     rdx, KEY_ELSE_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkElse
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_WHILE]
+        mov     rdx, KEY_WHILE_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkWhile
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_DO]
+        mov     rdx, KEY_DO_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkDo
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_PROC]
+        mov     rdx, KEY_PROC_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkProc
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_IN]
+        mov     rdx, KEY_IN_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkIn
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_END]
+        mov     rdx, KEY_END_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkEnd
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SYS0]
+        mov     rdx, KEY_SYS0_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSys0
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SYS1]
+        mov     rdx, KEY_SYS1_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSys1
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SYS2]
+        mov     rdx, KEY_SYS2_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSys2
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SYS3]
+        mov     rdx, KEY_SYS3_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSys3
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SYS4]
+        mov     rdx, KEY_SYS4_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSys4
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SYS5]
+        mov     rdx, KEY_SYS5_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSys5
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SYS6]
+        mov     rdx, KEY_SYS6_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSys6
+        jz      .finalize_keyword_simple
+        
+        jmp     .no_keyword
+        .finalize_keyword_simple:
+            mov     rdi, [r15]
+            mov     BYTE [rdi + rbx], cl
+            mov     eax, DWORD [r14 - 24]
+            mov     r8d, DWORD [r14 - 32]
+            mov     r9d, DWORD [r15 - 96] ; file id
+            mov     DWORD [rdi + rbx + 1], eax
+            mov     DWORD [rdi + rbx + 5], r8d
+            mov     DWORD [rdi + rbx + 9], r9d
+            mov     QWORD [rdi + rbx + 13], 0
+            mov     QWORD [rdi + rbx + 21], 0
+            mov     QWORD [rdi + rbx + 29], 0
+            mov     WORD  [rdi + rbx + 37], 0
+            jmp     .tokenize_next
+
+        .no_keyword:
+
+        ; check if number
+        xor     rcx, rcx
+        xor     rax, rax
+        .check_if_number_loop:
+            cmp     BYTE [r12 + rcx], "0"
+            jl      .parse_not_number
+
+            cmp     BYTE [r12 + rcx], "_"
+            jz      .check_if_number_loop_next
+
+            cmp     BYTE [r12 + rcx], "9"
+            jg      .parse_not_number
+
+            .check_if_number_loop_next:
+            inc     rcx
+            cmp     rcx, r13
+            jz      .parse_number
+            jmp     .check_if_number_loop
+
+        .parse_not_number:
+            mov     rdi, [r15]
+            mov     BYTE [rdi + rbx], tkIdent
+            mov     eax, DWORD [r14 - 24]
+            mov     r8d, DWORD [r14 - 32]
+            mov     r9d, DWORD [r15 - 96] ; file id
+            mov     DWORD [rdi + rbx + 1], eax
+            mov     DWORD [rdi + rbx + 5], r8d
+            mov     DWORD [rdi + rbx + 9], r9d
+            mov     BYTE  [rdi + rbx + 13], 0
+            mov     QWORD [rdi + rbx + 14], r12 ; ptr start
+            mov     QWORD [rdi + rbx + 22], r13 ; length
+            
+            jmp     .tokenize_next
+
+        .parse_number:
+        xor     rax, rax ; number
+        xor     rcx, rcx ; digit counter
+        xor     rdi, rdi ; ascii translation 
+        mov     r8 , 10
+        .parse_number_loop:
+            mul     r8
+            mov     dil, BYTE [r12 + rcx]
+            sub     dil, 48 
+            add     rax, rdi
+            inc     rcx
+            cmp     rcx, r13
+            ; TODO: check for number only whitespace sep,
+            ; error on 47<x<57
+            jz      .finish_number
+            jmp     .parse_number_loop
+        
+        .finish_number:
+            mov     rdi, [r15] ; ptr of token memory
+            mov     BYTE [rdi + rbx], tkPushInt
+            mov     eax, DWORD [r14 - 24]
+            mov     r8d, DWORD [r14 - 32]
+            mov     r9d, DWORD [r15 - 96] ; file id
+            mov     DWORD [rdi + rbx + 1], eax
+            mov     DWORD [rdi + rbx + 5], r8d
+            mov     DWORD [rdi + rbx + 9], r9d
+            mov     QWORD [rdi + rbx + 13], rax
+
+        .tokenize_next:
+
+        add     rbx, 40
+        jmp     .tokenize
+    .tokenize_end:
+    ; -- pop & unmap file --
+    pop     rax
+    pop     rax
+    pop     rax
+    pop     rdi
+    pop     rsi
+    call    unmap_memory
+
+    mov     rax, 0
+    pop     r15
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
+
+    mov     rsp, rbp
+    pop     rbp
+    ret
+
+
+
 ; input:
 ;   rdi: "base pointer"
 ;       ptr string     | - 8
@@ -1924,116 +2498,256 @@ entry $
 ; output:
 ;   rax: ptr sub-string | ptr == null => over
 ;   rdx: len sub-string
-next_string:
-    push rbp
-    mov rbp, rsp
-    push r15
-    push r14
-    push r13
-    push r12
-    push rbx
+next_word:
+    push    rbp
+    mov     rbp, rsp
+    
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
 
-    mov r12, rdi ; base pointer
-    
-    mov rax, [r12 - 8]   ; string ptr
-    mov rbx, [r12 - 40]  ; offset
-    lea r13, [rax + rbx] ; current iter start
-    
-    mov r14, rbx ; total offset
-    
-    cmp r14, [r12 - 16]
-    jz .end_of_string
+    mov     r15, rdi
+    mov     r13, [r15 - 8]
+    mov     rax, [r15 - 40]
+    lea     r13, [r13 + rax]
+    xor     rbx, rbx
+    .skip_whitespaces:
+        cmp     rbx, QWORD [r15 - 16]
+        jz      .skip_whitespaces_exit
+        cmp     BYTE [r13 + rbx], 0
+        jz      .skip_whitespaces_exit
+        cmp     BYTE [r13 + rbx], 10
+        jz      .skip_whitespaces_whitespace
+        cmp     BYTE [r13 + rbx], 32
+        jz      .skip_whitespaces_newline
 
-    xor rbx, rbx ; skipped whitespaces
-    .loop_trim_left:
-        cmp BYTE [r13 + rbx], 10
-        jz .handle_whitespace
-        cmp BYTE [r13 + rbx], 32
-        jz .handle_newline
+        jmp     .skip_whitespaces_end
+        .skip_whitespaces_whitespace:
+            jmp     .skip_whitepsaces_next
         
-        cmp r14, [r12 - 16]
-        jz .end_of_string
+        .skip_whitespaces_newline:
+            inc     QWORD [r15 - 24]
+            mov     QWORD [r15 - 32], 1
+            jmp     .skip_whitepsaces_next
 
-        jmp .found_word
+        .skip_whitepsaces_next:
+        inc     rbx
+        jmp     .skip_whitespaces
+    .skip_whitespaces_end:
+    mov     r12, rbx ; skipped whitespaces
+    lea     r13, [r13 + rbx]
+    xor     rbx, rbx
+    .find_whitespace:
+        cmp     rbx, QWORD [r15 - 16]
+        jz      .find_whitespace_end
+        cmp     BYTE [r13 + rbx], 10
+        jz      .find_whitespace_end
+        cmp     BYTE [r13 + rbx], 32
+        jz      .find_whitespace_end
+
+        cmp     BYTE [r13 + rbx], 34
+        jz      .handle_string
+
+        cmp     WORD [r13 + rbx], "//"
+        jz      .handle_comment
+
+        ; mov     ax, WORD [KEY_CMMT_START]
+        ; cmp     WORD [r13 + rbx], ax
+        ; jz      .handle_block_comment
+
+        jmp     .find_whitespace_next
+        .handle_comment:
+            add     rbx, 2
+            .move_until_comment_end:
+                cmp     rbx, QWORD [r15 - 16]
+                jz      .find_whitespace_end
+                cmp     BYTE [r13 + rbx], 10
+                jz      .found_comment
+
+                jmp     .move_until_comment_end_next
+                .found_comment:
+                    jmp     .find_whitespace_end
+                .move_until_comment_end_next:
+                inc     rbx
+                jmp     .move_until_comment_end
+
+        .handle_block_comment:
+            add     rbx, 2
+            .move_until_block_comment_end:
+                cmp     rbx, QWORD [r15 - 16]
+                jz      .find_whitespace_end
+                mov     ax, WORD [KEY_CMMT_END]
+                cmp     WORD [r13 + rbx], ax
+                jz      .found_block_comment
+                jmp     .move_until_block_comment_end_next
+                .found_block_comment:
+                    add     rbx, 2
+                    jmp     .find_whitespace_end
+                .move_until_block_comment_end_next:
+                inc     rbx
+                jmp     .move_until_comment_end
         
-        .handle_newline:
-            inc QWORD [r12 - 24]
-            mov QWORD [r12 - 32], 0 ; reset column counter
-        .handle_whitespace:
-            inc rbx
-            inc r14
-            jmp .loop_trim_left
- 
-    .found_word:
-    lea r13, [r13 + rbx] ; first non whitespace
-    xor rcx, rcx ; word len
-  
-    xor r15, r15 ; is in "
-    xor r8, r8
-    .loop_until_whitespace:
-        cmp r14, [r12 - 16] 
-        jz .found_whitespace
-
-        inc rcx
-        inc r14
-
-        cmp WORD [r13 + rcx - 2], "//"
-        jz .found_comment
-        cmp BYTE [r13 + rcx - 1], 34
-        jz .found_quote
-        jmp .move_on 
-
-        .found_comment:
-            cmp r8, 0
-            mov rax, 1
-            cmovz r8, rax
-            mov rax, 0
-            cmovnz r8, rax
-            jmp .move_on
-
-        .found_quote:
-            cmp r15, 0
-            mov rax, 1
-            cmovz r15, rax
-            mov rax, 0
-            cmovnz r15, rax
-            jmp .move_on
+        .handle_string:
+            inc     rbx
+            .move_until_string_end:
+                cmp     rbx, QWORD [r15 - 16] ; TODO: ERROR
+                jz      .find_whitespace_end
+                cmp     BYTE [r13 + rbx], 10 ; TODO: ERROR
+                cmp     BYTE [r13 + rbx], 34
+                jz      .found_string
+                jmp     .move_until_string_end_next
+                .found_string:
+                    inc     rbx
+                    jmp     .find_whitespace_end
+                .move_until_string_end_next:
+                inc     rbx
+                jmp     .move_until_string_end
         
-        .move_on:
-        cmp r8, 1
-        jz .loop_until_whitespace
-        cmp r15, 1
-        jz .loop_until_whitespace
+        .find_whitespace_next:
+        inc     rbx
+        jmp     .find_whitespace
 
-        cmp BYTE [r13 + rcx], 10
-        jz .found_whitespace
-        cmp BYTE [r13 + rcx], 32
-        jz .found_whitespace
-        jmp .loop_until_whitespace
+    .find_whitespace_end:
+    add     r12, rbx
+    add     [r15 - 40], r12
+    mov     rax, r13
+    mov     rdx, rbx
 
-    .found_whitespace:
-    add [r12 - 40], rbx ; offset whitespaces
-    add [r12 - 40], rcx ; offset word
+    jmp     .skip_whitespaces_no_exit
+    .skip_whitespaces_exit:
+        mov     rax, 0
+    .skip_whitespaces_no_exit:
     
-    mov rax, r13 ; ptr of word
-    mov rdx, rcx ; len of word
+    pop     r15
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
 
-    jmp .return_word
-    
-    .end_of_string:
-        mov rax, 0
-        mov rdx, 0
-
-    .return_word:
-
-    pop rbx
-    pop r12
-    pop r13
-    pop r14
-    pop r15
-    mov rsp, rbp
-    pop rbp
+    mov     rsp, rbp
+    pop     rbp
     ret
+
+; input:
+;   rdi: "base pointer"
+;       ptr string     | - 8
+;       len string     | - 16
+;       line counter   | - 24
+;       col counter    | - 32
+;       sub index      | - 40
+; output:
+;   rax: ptr sub-string | ptr == null => over
+;   rdx: len sub-string
+; next_string:
+;     push rbp
+;     mov rbp, rsp
+;     push r15
+;     push r14
+;     push r13
+;     push r12
+;     push rbx
+
+;     mov r12, rdi ; base pointer
+    
+;     mov rax, [r12 - 8]   ; string ptr
+;     mov rbx, [r12 - 40]  ; offset
+;     lea r13, [rax + rbx] ; current iter start
+    
+;     mov r14, rbx ; total offset
+    
+;     cmp r14, [r12 - 16]
+;     jz .end_of_string
+
+;     xor rbx, rbx ; skipped whitespaces
+;     .loop_trim_left:
+;         cmp BYTE [r13 + rbx], 10
+;         jz .handle_whitespace
+;         cmp BYTE [r13 + rbx], 32
+;         jz .handle_newline
+;         cmp r14, [r12 - 16]
+;         jz .end_of_string
+
+;         jmp .found_word
+        
+;         .handle_newline:
+;             inc QWORD [r12 - 24]
+;             mov QWORD [r12 - 32], 0 ; reset column counter
+;         .handle_whitespace:
+;             inc rbx
+;             inc r14
+;             jmp .loop_trim_left
+ 
+;     .found_word:
+;     lea r13, [r13 + rbx] ; first non whitespace
+
+;     xor rcx, rcx ; word len
+;     xor r15, r15 ; is in "
+;     xor r8, r8
+;     .loop_until_whitespace:
+;         cmp r14, [r12 - 16] 
+;         jz .found_whitespace
+
+;         inc rcx
+;         inc r14
+
+;         cmp WORD [r13 + rcx - 2], "//"
+;         jz .found_comment
+;         cmp BYTE [r13 + rcx - 1], 34
+;         jz .found_quote
+;         jmp .move_on 
+;         .found_comment:
+;             cmp r8, 0
+;             mov rax, 1
+;             cmovz r8, rax
+;             mov rax, 0
+;             cmovnz r8, rax
+;             jmp .move_on
+
+;         .found_quote:
+;             cmp r15, 0
+;             mov rax, 1
+;             cmovz r15, rax
+;             mov rax, 0
+;             cmovnz r15, rax
+;             jmp .move_on
+
+;         .move_on:
+;         cmp r8, 1
+;         jz .loop_until_whitespace
+;         cmp r15, 1
+;         jz .loop_until_whitespace
+
+;         cmp BYTE [r13 + rcx], 10
+;         jz .found_whitespace
+;         cmp BYTE [r13 + rcx], 32
+;         jz .found_whitespace
+;         jmp .loop_until_whitespace
+
+;     .found_whitespace:
+;     add [r12 - 40], rbx ; offset whitespaces
+;     add [r12 - 40], rcx ; offset word
+    
+;     mov rax, r13 ; ptr of word
+;     mov rdx, rcx ; len of word
+
+;     jmp .return_word
+    
+;     .end_of_string:
+;         mov rax, 0
+;         mov rdx, 0
+
+;     .return_word:
+
+;     pop rbx
+;     pop r12
+;     pop r13
+;     pop r14
+;     pop r15
+;     mov rsp, rbp
+;     pop rbp
+;     ret
 
 
 
@@ -2047,6 +2761,9 @@ next_string:
 ;   rax: file   = ptr string (allocated heap)
 ;   rdx: len    = u64
 open_file:
+    push    rbp
+    mov     rbp, rsp
+    push    rbx
     mov     rsi, O_RDONLY
     mov     rax, SYS_OPEN
     syscall ; rax = file descriptor (fd)
@@ -2076,6 +2793,10 @@ open_file:
     syscall ; rax = ptr file buffer
 
     mov     rdx, rsi
+
+    pop     rbx
+    mov     rsp, rbp
+    pop     rbp
     ret
 
 ; malloc but scuffed
@@ -2367,7 +3088,7 @@ uitds:
 ; input:
 ;   rdi: string
 ; output:
-;   rdx: len
+;   rax: len
 strlen:
     xor rax, rax
     .loop_strlen:
@@ -2540,6 +3261,8 @@ err9len     =   $ - err9
 errminus1   db  "illegal error LOL, this is probably a parser error"
 errminus1len=   $ - errminus1
 ; LANGUAGE KEYWORDS
+KEY_CMMT_START  db  "/", 42
+KEY_CMMT_END    db  42, "/"
 KEY_DUP         db  "dup"
 KEY_DUP_LEN     =   $ - KEY_DUP
 
@@ -2870,3 +3593,6 @@ char_c      db 67
 ; HARDCODED
 file1       db  "hexdump.XD", 0
 file1len    =   10
+
+fileLOL        db  "examples/controlflow.ktt"
+fileLOLlen     =   $ - fileLOL

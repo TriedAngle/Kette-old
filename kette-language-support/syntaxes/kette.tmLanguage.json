@@ -13,6 +13,9 @@
 		},
 		{
 			"include": "#comments"
+		},
+		{
+			"include": "#block-comments"
 		}
 	],
 	"repository": {
@@ -33,19 +36,18 @@
 				}
 			]
 		},
+		"block-comments": {
+			"name": "comment.block.kette",
+			"begin": "/\\*",
+			"end": "\\*/"
+		},
 		"comments": {
 			"patterns": [
 				{
 					"name": "comment.line.kette",
 					"begin": "//",
 					"end": "\n"
-				},
-				{
-					"name": "comment.manual.kette",
-					"begin": "//",
-					"end": "//"
 				}
-
 			]
 		},
 		"numerics": {

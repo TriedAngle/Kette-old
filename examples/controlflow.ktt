@@ -2,9 +2,9 @@
 
 : StdOut        in 1    ;
 
-proc file-write //( len(str) ptr(str) fd -- )// in SysWrite syscall3 drop end
+proc file-write /*( len ptr fd -- )*/ in SysWrite syscall3 drop end
 
-proc print-string //( len(str) ptr(str) -- )// in StdOut file-write end
+proc print-string /*( len ptr -- )*/ in StdOut file-write end
 
 
 if 420 69 > then
@@ -15,7 +15,7 @@ else
 end
 
 
-// FizzBuzz //
+// FizzBuzz
 15 while dup 0 > do
     if dup 3 % 0 = over 5 % 0 = and then
         "FizzBuzz" print-string 0 . 

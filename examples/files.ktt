@@ -52,6 +52,6 @@
     syscall6
 ;
 
-"test.txt" OpRead file-open dup file-get-len 2dup file-alloc // len ptr //
+"examples/test.txt" OpRead file-open dup file-get-len 2dup file-alloc // len ptr //
 over 30 - over 10 +
 print-string
