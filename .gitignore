@@ -2,4 +2,5 @@ kette
 examples/*
 !examples/*.*
 examples/*.asm
+examples/*.hex
 */hexdump.XD

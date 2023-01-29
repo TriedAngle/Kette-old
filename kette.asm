@@ -81,14 +81,41 @@ entry $
     add     rax, 8
     mov     [arg_ptr], rax
 
-    mov     rdi, [arg_count]
-    mov     rdi, [rdi]
+    mov     r12, [arg_count]
+    mov     r12, [r12]
     
-    cmp     rdi, 1
+    cmp     r12, 1
     jz      error_no_file_given
 
-    cmp     rdi, 2
+    cmp     r12, 2
     jz      error_no_output_given
+
+    cmp     r12, 3
+    jng     .no_extras
+    mov     rbx, 3
+    mov     r8, 8
+    .cmd_loop:
+        cmp     rbx, r12
+        jz      .cmd_loop_end
+        mov     r13, [arg_ptr]
+        mov     r13, [r13 + rbx * 8]
+        mov     rdi, r13
+        mov     rsi, hexcommand
+        mov     rdx, hexcommand_len
+        call    mem_cmp
+        cmp     rax, 1
+        jz      .cmd_hex
+
+        jmp     .next_command
+        .cmd_hex:
+        mov     [hexdump], 1
+        jmp     .next_command
+        
+        .next_command:
+        inc     rbx 
+        jmp     .cmd_loop
+    .cmd_loop_end:
+    .no_extras:
 
     push    rbp
     mov     rbp, rsp
@@ -150,9 +177,59 @@ entry $
         jmp     .tokenize_all
     .tokenize_all_end:
 
+    cmp     [hexdump], 0
+    jz      .no_hexdump 
+    
+
+    sub     rsp, hex_file_len
+    mov     rdi, rsp
+    mov     rsi, hex_file
+    mov     rdx, hex_file_len
+    call    mem_move
+
+    mov     r10, [arg_ptr]
+    mov     r10, [r10 + 8]
+    mov     rdi, r10
+    call    strlen
+    mov     r12, rax
+    sub     rsp, r12
+
+    mov     rdi, rsp
+    mov     rsi, r10
+    mov     rdx, r12
+    call    mem_move
+
+    mov     rdi, rsp
+    mov     rsi, hex_file_len
+    add     rsi, r12
+
+    mov     rdi, rsp
+    mov     rsi, O_WRONLY or O_CREAT or O_TRUNC
+    xor     rdx, rdx
+    mov     rax, SYS_OPEN
+    syscall
+    mov     r13, rax
+    
+    mov     rdi, r13
+    mov     rsi, [r15]
+    mov     rdx, [r15 - 16]
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, r13
+    mov     rax, SYS_CLOSE
+    syscall
+
+    add     rsp, r12
+    add     rsp, hex_file_len
+    
+
+
+    .no_hexdump:
     mov     rdi, 0
     mov     rax, SYS_EXIT
     syscall
+
 
 
     ; mov     rdi, [arg_ptr]
@@ -690,13 +767,6 @@ entry $
     
     ;   rbx -> r12 | token mem effective len
     mov     r12, rbx
-
-
-    mov     rdi, file1
-    mov     rsi, O_WRONLY or O_CREAT
-    xor     rdx, rdx
-    mov     rax, SYS_OPEN
-    syscall
 
     mov     rdi, rax
     mov     rsi, [rbp - 48]
@@ -2140,6 +2210,8 @@ tokenize_file:
 
         .finalize_string:
             mov     rdi, [r15]
+            mov     rsi, [r15 - 16]
+            lea     rdi, [rdi + rsi]
             mov     BYTE [rdi + rbx], tkPushStr
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
@@ -2168,7 +2240,9 @@ tokenize_file:
 
 
         .finalize_symbol:
-            mov     rdi, [r15] ; ptr of token memory
+            mov     rdi, [r15]
+            mov     rsi, [r15 - 16]
+            lea     rdi, [rdi + rsi]
             mov     BYTE [rdi + rbx], cl
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
@@ -2385,6 +2459,8 @@ tokenize_file:
         jmp     .no_keyword
         .finalize_keyword_simple:
             mov     rdi, [r15]
+            mov     rsi, [r15 - 16]
+            lea     rdi, [rdi + rsi]
             mov     BYTE [rdi + rbx], cl
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
@@ -2421,6 +2497,8 @@ tokenize_file:
 
         .parse_not_number:
             mov     rdi, [r15]
+            mov     rsi, [r15 - 16]
+            lea     rdi, [rdi + rsi]
             mov     BYTE [rdi + rbx], tkIdent
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
@@ -2452,7 +2530,9 @@ tokenize_file:
             jmp     .parse_number_loop
         
         .finish_number:
-            mov     rdi, [r15] ; ptr of token memory
+            mov     rdi, [r15]
+            mov     rsi, [r15 - 16]
+            lea     rdi, [rdi + rsi]
             mov     BYTE [rdi + rbx], tkPushInt
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
@@ -2467,6 +2547,7 @@ tokenize_file:
         add     rbx, 40
         jmp     .tokenize
     .tokenize_end:
+    add     [r15 - 16], rbx
     ; -- pop & unmap file --
     pop     rax
     pop     rax
@@ -3224,6 +3305,7 @@ error_illegal:
 segment readable writable
     arg_count rq 1
     arg_ptr rq 1
+    hexdump db 0
 
 segment readable
 
@@ -3591,8 +3673,7 @@ char_b      db 66
 char_c      db 67
 
 ; HARDCODED
-file1       db  "hexdump.XD", 0
-file1len    =   10
-
-fileLOL        db  "examples/controlflow.ktt"
-fileLOLlen     =   $ - fileLOL
+hexcommand      db  "-hex"
+hexcommand_len  =   $ - hexcommand
+hex_file        db  ".hex"
+hex_file_len    =   $ - hex_file
