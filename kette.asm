@@ -2111,7 +2111,7 @@ tokenize_file:
         jz      .tokenize_end
         mov     r12, rax ; ptr
         mov     r13, rdx ; len
-        
+
         mov     rcx, -1
         ; checking for symbol
         ; cmov does not support consts lol, x86-64 moment!
@@ -2197,17 +2197,20 @@ tokenize_file:
         .not_symbol_len3:
         ; skip comments
         cmp     WORD [r12], "//"
-        jz      .tokenize_next
+        jz      .tokenize_next_skip
+        mov     ax, WORD [KEY_CMMT_START]
+        cmp     WORD [r12], ax
+        jz      .tokenize_next_skip
 
         cmp     BYTE [r12], 34  ; strings are already "checked" in word generation
         jz      .finalize_string
 
         ; if opcode was set (so not -1), jump to symbol handling
         ; if opcode was not set, continue checking what it is
-        cmp     r15, -1
+        cmp     rcx, -1
         jnz     .finalize_symbol
         jmp     .no_symbol
-
+        
         .finalize_string:
             mov     rdi, [r15]
             mov     rsi, [r15 - 16]
@@ -2215,11 +2218,11 @@ tokenize_file:
             mov     BYTE [rdi + rbx], tkPushStr
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
+            sub     r8d, r13d
             mov     r9d, DWORD [r15 - 96] ; file id
             mov     DWORD [rdi + rbx + 1], eax
             mov     DWORD [rdi + rbx + 5], r8d
             mov     DWORD [rdi + rbx + 9], r9d
-            ; skip "
             mov     r8, r14
             lea     rax, [r13]
 
@@ -2227,7 +2230,7 @@ tokenize_file:
             mov     rdx, [r15 - 40] ; string mem offset
             mov     r10, [r15 - 128] ; string counter
             
-            mov     QWORD [rdi + rbx + 9], r10 ; string id
+            mov     QWORD [rdi + rbx + 16], r10 ; string id
 
             mov     QWORD [rcx + rdx], r10 ; string id
             mov     QWORD [rcx + rdx + 8], r8 ; string len
@@ -2246,6 +2249,7 @@ tokenize_file:
             mov     BYTE [rdi + rbx], cl
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
+            sub     r8d, r13d
             mov     r9d, DWORD [r15 - 96] ; file id
             mov     DWORD [rdi + rbx + 1], eax
             mov     DWORD [rdi + rbx + 5], r8d
@@ -2464,14 +2468,12 @@ tokenize_file:
             mov     BYTE [rdi + rbx], cl
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
-            mov     r9d, DWORD [r15 - 96] ; file id
+            sub     r8d, r13d
+            mov     r9d, DWORD [r15 - 96]
             mov     DWORD [rdi + rbx + 1], eax
             mov     DWORD [rdi + rbx + 5], r8d
             mov     DWORD [rdi + rbx + 9], r9d
-            mov     QWORD [rdi + rbx + 13], 0
-            mov     QWORD [rdi + rbx + 21], 0
-            mov     QWORD [rdi + rbx + 29], 0
-            mov     WORD  [rdi + rbx + 37], 0
+
             jmp     .tokenize_next
 
         .no_keyword:
@@ -2502,13 +2504,14 @@ tokenize_file:
             mov     BYTE [rdi + rbx], tkIdent
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
+            ; sub     r8d, r13d
             mov     r9d, DWORD [r15 - 96] ; file id
             mov     DWORD [rdi + rbx + 1], eax
             mov     DWORD [rdi + rbx + 5], r8d
             mov     DWORD [rdi + rbx + 9], r9d
             mov     BYTE  [rdi + rbx + 13], 0
-            mov     QWORD [rdi + rbx + 14], r12 ; ptr start
-            mov     QWORD [rdi + rbx + 22], r13 ; length
+            mov     QWORD [rdi + rbx + 16], r12 ; ptr start
+            mov     QWORD [rdi + rbx + 24], r13 ; length
             
             jmp     .tokenize_next
 
@@ -2534,17 +2537,20 @@ tokenize_file:
             mov     rsi, [r15 - 16]
             lea     rdi, [rdi + rsi]
             mov     BYTE [rdi + rbx], tkPushInt
-            mov     eax, DWORD [r14 - 24]
+            mov     r10d, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
-            mov     r9d, DWORD [r15 - 96] ; file id
-            mov     DWORD [rdi + rbx + 1], eax
+            sub     r8d, r13d
+            mov     r9d, DWORD [r15 - 96]
+            mov     DWORD [rdi + rbx + 1], r10d
             mov     DWORD [rdi + rbx + 5], r8d
             mov     DWORD [rdi + rbx + 9], r9d
-            mov     QWORD [rdi + rbx + 13], rax
-
+            mov     QWORD [rdi + rbx + 16], rax
+            jmp     .tokenize_next
+        
+        .tokenize_next_skip:
+        sub     rbx, 48
         .tokenize_next:
-
-        add     rbx, 40
+        add     rbx, 48
         jmp     .tokenize
     .tokenize_end:
     add     [r15 - 16], rbx
@@ -2599,13 +2605,14 @@ next_word:
         jz      .skip_whitespaces_exit
         cmp     BYTE [r13 + rbx], 0
         jz      .skip_whitespaces_exit
-        cmp     BYTE [r13 + rbx], 10
-        jz      .skip_whitespaces_whitespace
         cmp     BYTE [r13 + rbx], 32
+        jz      .skip_whitespaces_whitespace
+        cmp     BYTE [r13 + rbx], 10
         jz      .skip_whitespaces_newline
 
         jmp     .skip_whitespaces_end
         .skip_whitespaces_whitespace:
+            inc     QWORD [r15 - 32]
             jmp     .skip_whitepsaces_next
         
         .skip_whitespaces_newline:
@@ -2646,7 +2653,6 @@ next_word:
                 jz      .find_whitespace_end
                 cmp     BYTE [r13 + rbx], 10
                 jz      .found_comment
-
                 jmp     .move_until_comment_end_next
                 .found_comment:
                     jmp     .find_whitespace_end
@@ -2692,7 +2698,9 @@ next_word:
 
     .find_whitespace_end:
     add     r12, rbx
+    add     QWORD [r15 - 32], rbx
     add     [r15 - 40], r12
+
     mov     rax, r13
     mov     rdx, rbx
 
