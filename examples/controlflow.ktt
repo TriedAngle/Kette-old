@@ -1,4 +1,4 @@
-: SysWrite      in 1    ;
+: SysWrite      in 2    ;
 
 : StdOut        in 1    ;
 
