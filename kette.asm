@@ -2065,8 +2065,7 @@ cross_reference_tokens:
             jz      error_in_without_proc ; TODO: ERROR
             pop     rax
             cmp     byte [r12 + rax], tkProc
-            jz      error_in_without_proc ; TODO: ERROR (improve)
-            
+            jnz      error_in_without_proc ; TODO: ERROR (improve)
             mov     [r12 + rbx + 13], rax
             push    rbx
             
@@ -2074,7 +2073,7 @@ cross_reference_tokens:
 
         .cross_reference_end:
             cmp     r14, 0
-            jz     error_too_many_end ; TODO: ERROR
+            jz      error_too_many_end ; TODO: ERROR
             
             pop     rax
             dec     r14
