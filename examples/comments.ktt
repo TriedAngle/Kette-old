@@ -1,0 +1,9 @@
+5 . // single line ocomment
+
+2 . /* multiline
+ lolll
+comment*/
+
+: hello /* inline works as well */ in 1 . ;
+
+hello

@@ -170,6 +170,7 @@ entry $
     mov     [rbx + 8], rax
     mov     [rbx + 16], rdi
 
+    ; -- PASS 0 : Tokenization --
     .tokenize_all:
         mov     rdi, r15
         call    tokenize_file
@@ -178,33 +179,28 @@ entry $
         jmp     .tokenize_all
     .tokenize_all_end:
 
+    ; TODO: investigate why rdi doens't work
+    .hexdump_pass_0:
     cmp     [hexdump], 0
     jz      .no_hexdump_pass_0
-    ; TODO: investigate why rdi doens't work
-    ; mov     rdi, r15
     call    hexdump_file
     .no_hexdump_pass_0:
 
-    ; mov     rdi, r15
+    ; -- PASS 1 : Cross Referencing --
+    mov     rdi, r15
     call    cross_reference_tokens
-    
     inc     qword [r15 - 152]
+
+    .hexdump_pass_1:
     cmp     [hexdump], 0
     jz      .no_hexdump_pass_1
-
-    ; mov     rdi, r15
     call    hexdump_file
-
     .no_hexdump_pass_1:
 
     mov     rdi, 0
     mov     rax, SYS_EXIT
     syscall
     
-
-
-    cmp     r14, 0
-    jg     error_if_without_end
 
     
     mov     rax, [rbp - 48]
@@ -1744,7 +1740,7 @@ tokenize_file:
             mov     BYTE [rdi + rbx], tkIdent
             mov     eax, DWORD [r14 - 24]
             mov     r8d, DWORD [r14 - 32]
-            ; sub     r8d, r13d
+            sub     r8d, r13d
             mov     r9d, DWORD [r15 - 96] ; file id
             mov     DWORD [rdi + rbx + 1], eax
             mov     DWORD [rdi + rbx + 5], r8d
@@ -1882,9 +1878,9 @@ next_word:
         cmp     WORD [r13 + rbx], "//"
         jz      .handle_comment
 
-        ; mov     ax, WORD [KEY_CMMT_START]
-        ; cmp     WORD [r13 + rbx], ax
-        ; jz      .handle_block_comment
+        mov     ax, WORD [KEY_CMMT_START]
+        cmp     WORD [r13 + rbx], ax
+        jz      .handle_block_comment
 
         jmp     .find_whitespace_next
         .handle_comment:
@@ -1906,16 +1902,27 @@ next_word:
             .move_until_block_comment_end:
                 cmp     rbx, QWORD [r15 - 16]
                 jz      .find_whitespace_end
+                cmp     BYTE [r13 + rbx], 10
+                jz      .block_comment_handle_newline
+                cmp     BYTE [r13 + rbx], 32
+                jz      .block_comment_handle_whitespace
                 mov     ax, WORD [KEY_CMMT_END]
                 cmp     WORD [r13 + rbx], ax
                 jz      .found_block_comment
                 jmp     .move_until_block_comment_end_next
+                .block_comment_handle_newline:
+                    inc     QWORD [r15 - 24]
+                    mov     QWORD [r15 - 32], 1
+                    jmp     .move_until_block_comment_end_next
+                .block_comment_handle_whitespace:
+                    inc     QWORD [r15 - 32]
+                    jmp     .move_until_block_comment_end_next
                 .found_block_comment:
                     add     rbx, 2
                     jmp     .find_whitespace_end
                 .move_until_block_comment_end_next:
                 inc     rbx
-                jmp     .move_until_comment_end
+                jmp     .move_until_block_comment_end
         
         .handle_string:
             inc     rbx
@@ -1979,9 +1986,9 @@ cross_reference_tokens:
     push    r12
     push    r13
     push    r14
-    ; push    r15
+    push    r15
 
-    ; mov     r15, rdi
+    mov     r15, rdi
     mov     r12, [r15]
     lea     r12, [r12]
     xor     r13, r13 ; addr counter
@@ -2033,7 +2040,7 @@ cross_reference_tokens:
             jnz     error_else_without_if ; TODO: ERROR
             mov     [r12 + rax + 13], r13 ; if/then -> else
             mov     [r12 + rbx + 21], r13 ; else jmp point
-            inc     r14
+            inc     r13
             push    rbx
             jmp     .cross_reference_next
 
@@ -2145,8 +2152,10 @@ cross_reference_tokens:
         jmp     .cross_reference
 
     .cross_refrence_end:
-    
-    ; pop     r15
+    cmp     r14, 0
+    jg     error_if_without_end ; TODO: ERR
+
+    pop     r15
     pop     r14
     pop     r13
     pop     r12

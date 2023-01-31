@@ -1,10 +1,10 @@
-: SysWrite      in 2    ;
+: SysWrite      in 1    ;
 
 : StdOut        in 1    ;
 
-: file-write /*( len ptr fd -- )*/ in SysWrite syscall3 drop ;
+proc file-write /*( len ptr fd -- )*/ in SysWrite syscall3 drop end
 
-: print-string /*( len ptr -- )*/ in StdOut file-write ;
+proc print-string /*( len ptr -- )*/ in StdOut file-write end
 
 
 if 420 69 > then
