@@ -151,22 +151,22 @@ entry $
 
     mov     rdi, PAGE1_BYTES
     call    map_memory
-    push    rax ; ptr proc mem | r15 - 104
-    push    rdi ; len proc mem | r15 - 112
-    push    r12 ; off proc mem | r15 - 120
+    push    rax ; ptr var mem | r15 - 104
+    push    rdi ; len var mem | r15 - 112
+    push    r12 ; off var mem | r15 - 120
 
-    xor     rax, rax
+    mov     rax, 1
     push    rax ; counter string | r15 - 128
     push    rax ; counter proc   | r15 - 136
     push    rax ; counter var    | r15 - 144
+    mov     rax, 0
     push    rax ; counter pass   | r15 - 152
 
     ; put in first file
     mov     rdi, [arg_ptr]
     mov     rdi, [rdi + 8]
     call    strlen
-    lea     rbx, [r15 - 72]
-    mov     qword [rbx + 0], 0
+    mov     rbx, [r15 - 72]
     mov     [rbx + 8], rax
     mov     [rbx + 16], rdi
 
@@ -178,7 +178,6 @@ entry $
         jz      .tokenize_all_end
         jmp     .tokenize_all
     .tokenize_all_end:
-
     ; TODO: investigate why rdi doens't work
     .hexdump_pass_0:
     cmp     [hexdump], 0
@@ -189,6 +188,7 @@ entry $
     ; -- PASS 1 : Cross Referencing --
     mov     rdi, r15
     call    cross_reference_tokens
+
     inc     qword [r15 - 152]
 
     .hexdump_pass_1:
@@ -202,53 +202,10 @@ entry $
     syscall
     
 
-    
     mov     rax, [rbp - 48]
     lea     r13, [rax]  ; token file ptr
     mov     rax, [rbp - 120]
     lea     r14, [rax]  ; output file ptr
-
-    xor     rbx, rbx
-    .loop_find_function_calls:
-        cmp     BYTE [r13 + rbx], tkIdent
-        jz      .loop_find_function_call_ident
- 
-        jmp     .loop_find_function_calls_end
-        
-        .loop_find_function_call_ident:
-        cmp     BYTE [r13 + rbx + 9], 0
-        jnz     .loop_find_function_calls_end
-
-        mov     rax, [rbp - 96]
-        lea     r10, [rax]
-        xor     r15, r15
-        .loop_find_call_id:
-            cmp     r15, [rbp - 112]
-            jz      .loop_find_call_id_stop
-            
-            mov     rdi, [r10 + r15 + 8]
-            mov     rsi, [r13 + rbx + 10]
-            mov     rdx, [r10 + r15 + 16]
-            call    mem_cmp
-            cmp     rax, 0
-            jz      .loop_find_call_id_end
-            
-            mov     BYTE [r13 + rbx + 9], varIdentProc
-            mov     rax, QWORD [r10 + r15]
-            mov     QWORD [r13 + rbx + 10], rax ; override bc why not
-            jmp     .loop_find_call_id_stop
-
-            .loop_find_call_id_end:
-            lea     rdi, [r14 + r15] 
-            add     r15, 32
-            jmp     .loop_find_call_id
-
-        .loop_find_call_id_stop:
-
-        .loop_find_function_calls_end:
-        add     rbx, 32
-        cmp     rbx, r12
-        jnz     .loop_find_function_calls
     
     ; allocate memory
     mov     rdi, PAGE4_BYTES
@@ -1310,9 +1267,11 @@ tokenize_file:
 
     mov     r15, rdi ; store pointer
 
+
+
     ; -- open file --
-    lea     rdi, [r15 - 72] ; include ptr
-    mov     rdx, [r15 - 96] ; include offset
+    mov     rdi, [r15 - 72] ; include ptr
+    mov     rdx, [r15 - 96] ; include current
     lea     rdi, [rdi + rdx]
     mov     r13, [rdi + 8] ; len
     mov     r12, [rdi + 16] ; ptr
@@ -1332,6 +1291,8 @@ tokenize_file:
     mov     r14, rsp
     push    rax ; file string | - 8
     push    rdx ; file len | - 16
+
+
     mov     rax, 1
     push    rax   ; line counter | - 24
     push    rax   ; col counter | - 32 
@@ -1956,7 +1917,7 @@ next_word:
     .skip_whitespaces_exit:
         mov     rax, 0
     .skip_whitespaces_no_exit:
-    
+
     pop     r15
     pop     r14
     pop     r13
@@ -2038,8 +1999,8 @@ cross_reference_tokens:
             pop     rax
             cmp     byte [r12 + rax], tkThen
             jnz     error_else_without_if ; TODO: ERROR
-            mov     [r12 + rax + 13], r13 ; if/then -> else
-            mov     [r12 + rbx + 21], r13 ; else jmp point
+            mov     [r12 + rax + 16], r13 ; if/then -> else
+            mov     [r12 + rbx + 24], r13 ; else jmp point
             inc     r13
             push    rbx
             jmp     .cross_reference_next
@@ -2053,7 +2014,7 @@ cross_reference_tokens:
             cmp     r14, 0
             jz      error_do_without_while ; TODO: ERROR
             pop     rax
-            mov     [r12 + rbx + 13], rax
+            mov     [r12 + rbx + 16], rax
             push    rbx
             jmp     .cross_reference_next
 
@@ -2073,7 +2034,7 @@ cross_reference_tokens:
             pop     rax
             cmp     byte [r12 + rax], tkProc
             jnz      error_in_without_proc ; TODO: ERROR (improve)
-            mov     [r12 + rbx + 13], rax
+            mov     [r12 + rbx + 16], rax
             push    rbx
             
             jmp     .cross_reference_next
@@ -2098,52 +2059,55 @@ cross_reference_tokens:
         
             .cross_reference_end_then:
                 ; handle if
-                mov     qword [r12 + rax + 13], r13 
+                mov     qword [r12 + rax + 16], r13 
                 mov     byte  [r12 + rbx + 13], varEndIf ;
-                mov     qword [r12 + rbx + 14], r13
+                mov     qword [r12 + rbx + 16], r13
                 inc     r13
                 jmp     .cross_reference_next
             
             .cross_reference_end_proc:
-                mov     r9, [r12 + rax + 13]  ; proc entry
-                    ; rbx                   ; end entry
+                mov     r9, [r12 + rax + 16]  ; proc entry
+                      ; rbx                   ; end entry
+                push    r13
                 
-                mov     qword [r12 + r9  + 13], r13
+                mov     r13, [r15 - 136]
+                mov     qword [r12 + r9  + 16], r13
                 mov     byte  [r12 + rbx + 13], varEndProc
-                mov     qword [r12 + rbx + 14], r13 ; end addr
+                mov     qword [r12 + rbx + 16], r13 ; end addr
                 
                 lea     r10, [r12 + r9 + 48] ; identifier
             
                 mov     r11, [r15 - 48] ; proc mem
                 mov     r8, [r15 - 64] ; proc offset
 
-                mov     [r11 + r8], r13
-                mov     rax, [r10 + 14]
-                mov     [r11 + r8 + 8 ], rax
-                mov     rax, [r10 + 22]
+                mov     [r11 + r8 +  0], r13
+                mov     rax, [r10 + 16]
+                mov     [r11 + r8 +  8], rax
+                mov     rax, [r10 + 24]
                 mov     [r11 + r8 + 16], rax
 
                 add     qword [r15 - 64], 32
-                inc     r13
+                inc     qword [r15 - 136]
+                pop     r13
                 jmp     .cross_reference_next
 
             .cross_reference_end_do:
                 ; rax = do
                 ; rdi = while
-                mov     rdi, [r12 + rax + 13]
-                mov     [r12 + rdi + 13], r13 ; while label
+                mov     rdi, [r12 + rax + 16]
+                mov     [r12 + rdi + 16], r13 ; while label
                 mov     byte [r12 + rbx + 13], varEndDo
-                mov     [r12 + rbx + 14], r13 ; jmp while label
+                mov     [r12 + rbx + 16], r13 ; jmp while label
                 inc     r13
-                mov     [r12 + rax + 13], r13 ; jmp end label
-                mov     [r12 + rbx + 21], r13 ; end label
+                mov     [r12 + rax + 16], r13 ; jmp end label
+                mov     [r12 + rbx + 24], r13 ; end label
                 inc     r13
                 jmp     .cross_reference_next
 
             .cross_reference_end_else:
-                mov     [r12 + rax + 13], r13
+                mov     [r12 + rax + 16], r13
                 mov     byte [r12 + rbx + 13], varEndIf ; should be able to reuse this
-                mov     [r12 + rbx + 14], r13
+                mov     [r12 + rbx + 16], r13
                 inc     r13
                 jmp     .cross_reference_next
 
@@ -2154,6 +2118,53 @@ cross_reference_tokens:
     .cross_refrence_end:
     cmp     r14, 0
     jg     error_if_without_end ; TODO: ERR
+
+
+    mov     r12, [r15]
+    lea     r12, [r12]
+    xor     rbx, rbx
+    .cross_reference_calls:
+        cmp     rbx, [r15 - 16]
+        jz     .cross_reference_calls_end
+
+        cmp     BYTE [r12 + rbx], tkIdent
+        jz      .cross_reference_calls_ident
+        jmp     .cross_reference_calls_next
+
+        .cross_reference_calls_ident:
+            cmp     BYTE [r12 + rbx + 13], 0
+            jnz     .cross_reference_calls_next
+
+            mov     r10, [r15 - 48]
+            lea     r10, [r10]
+            xor     r13, r13
+            .find_call_id:
+                cmp     r13, [r15 - 64]
+                jz      .find_call_id_end
+                
+                mov     rdi, [r10 + r13 +  8]
+                mov     rsi, [r12 + rbx + 16]
+                mov     rdx, [r10 + r13 + 16]
+                call    mem_cmp
+                cmp     rax, 0
+                jz      .find_call_id_next
+
+                mov     byte [r12 + rbx + 13], varIdentProc
+                mov     rax, qword [r10 + r13]
+                mov     qword [r12 + rbx + 16], rax ; override bc why not
+                jmp     .find_call_id_end
+
+                .find_call_id_next:
+                add     r13, 32
+                jmp     .find_call_id
+
+            .find_call_id_end:
+
+        .cross_reference_calls_next:
+        add     rbx, 48
+        jmp     .cross_reference_calls
+
+    .cross_reference_calls_end:
 
     pop     r15
     pop     r14
