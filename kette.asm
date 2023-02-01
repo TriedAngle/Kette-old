@@ -1267,8 +1267,6 @@ tokenize_file:
 
     mov     r15, rdi ; store pointer
 
-
-
     ; -- open file --
     mov     rdi, [r15 - 72] ; include ptr
     mov     rdx, [r15 - 96] ; include current
@@ -1745,8 +1743,50 @@ tokenize_file:
             jmp     .tokenize_next
         
         .tokenize_next_skip:
+        
         sub     rbx, 48
         .tokenize_next:
+
+        ; - BUFFER TOKEN GROW -
+        mov     rax, [r15 - 8] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     rbx, rax 
+        jg      .grow_token_buffer
+        jmp     .not_grow_token_buffer
+        .grow_token_buffer:
+        mov     rdi, [r15 - 0]
+        mov     rsi, [r15 - 8]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [r15 - 0], rax
+        mov     [r15 - 8], rdx
+        .not_grow_token_buffer:
+
+        ; - BUFFER STRING GROW -
+        mov     rax, [r15 - 32] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     [r15 - 40], rax 
+        jg      .grow_string_buffer
+        jmp     .not_grow_string_buffer
+        .grow_string_buffer:
+        mov     rdi, [r15 - 24]
+        mov     rsi, [r15 - 32]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [r15 - 24], rax
+        mov     [r15 - 32], rdx
+        .not_grow_string_buffer:
+
         add     rbx, 48
         jmp     .tokenize
     .tokenize_end:
@@ -2112,6 +2152,27 @@ cross_reference_tokens:
                 jmp     .cross_reference_next
 
         .cross_reference_next:
+
+        ; - BUFFER PROC GROW -
+        mov     rax, [r15 - 56] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     [r15 - 64], rax 
+        jg      .grow_proc_buffer
+        jmp     .not_grow_proc_buffer
+        .grow_proc_buffer:
+        mov     rdi, [r15 - 48]
+        mov     rsi, [r15 - 56]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [r15 - 48], rax
+        mov     [r15 - 56], rdx
+        .not_grow_proc_buffer:
+
         add     rbx, 48
         jmp     .cross_reference
 
