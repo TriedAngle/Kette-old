@@ -197,1022 +197,30 @@ entry $
     call    hexdump_file
     .no_hexdump_pass_1:
 
-    mov     rdi, 0
-    mov     rax, SYS_EXIT
-    syscall
-    
 
-    mov     rax, [rbp - 48]
-    lea     r13, [rax]  ; token file ptr
-    mov     rax, [rbp - 120]
-    lea     r14, [rax]  ; output file ptr
-    
-    ; allocate memory
     mov     rdi, PAGE4_BYTES
     call    map_memory
-    push    rax ; [rbp - 120] = ptr | output file
-    push    rdi ; [rbp - 128] = len | output file
- 
-    xor     rbx, rbx ; tokenspace offset
-    xor     r15, r15 ; output file offset 
-    
-    push    rbx ; [rbp - 136] = string data offset | 24 bytes aligned
-    
-    mov     rax, [rbp - 48]
-    lea     r13, [rax]  ; token file ptr
-    mov     rax, [rbp - 120]
-    lea     r14, [rax]  ; output file ptr
-    lea     rdi, [r14 + r15]
-    mov     rsi, ASM_HEADER
-    mov     rdx, ASM_HEADER_LEN
-    call    mem_move
-    add     r15, ASM_HEADER_LEN
-    .loop_bytecode_to_asm:
-        mov     rax, [rbp - 120]
-        lea     r14, [rax]
-
-        cmp     BYTE [r13 + rbx], tkPushInt
-        jz      .output_push_int
-        
-        cmp     BYTE [r13 + rbx], tkAdd
-        jz      .output_add
-
-        cmp     BYTE [r13 + rbx], tkSub
-        jz      .output_sub
-
-        cmp     BYTE [r13 + rbx], tkMul
-        jz      .output_mul
-
-        cmp     BYTE [r13 + rbx], tkDiv
-        jz      .output_div
-
-        cmp     BYTE [r13 + rbx], tkMod
-        jz      .output_mod
-        
-        cmp     BYTE [r13 + rbx], tkModiv
-        jz      .output_modiv
-
-
-        cmp     BYTE [r13 + rbx], tkEqual
-        jz      .output_equal
-
-        cmp     BYTE [r13 + rbx], tkGreater
-        jz      .output_greater
-
-        cmp     BYTE [r13 + rbx], tkLesser
-        jz      .output_lesser
-
-        cmp     BYTE [r13 + rbx], tkGEqual
-        jz      .output_greater_equal
-
-        cmp     BYTE [r13 + rbx], tkLEqual
-        jz      .output_lesser_equal
-
-        cmp     BYTE [r13 + rbx], tkBitAnd
-        jz      .output_bit_and
-
-        cmp     BYTE [r13 + rbx], tkBitOr
-        jz      .output_bit_or
-
-
-        cmp     BYTE [r13 + rbx], tkAnd
-        jz      .output_and
-
-        cmp     BYTE [r13 + rbx], tkOr
-        jz      .output_or
-
-
-        cmp     BYTE [r13 + rbx], tkDump
-        jz      .output_dump
-
-        cmp     BYTE [r13 + rbx], tkDup
-        jz      .output_dup
-
-        cmp     BYTE [r13 + rbx], tkSwap
-        jz      .output_swap
-
-        cmp     BYTE [r13 + rbx], tkRot
-        jz      .output_rot
-
-        cmp     BYTE [r13 + rbx], tkOver
-        jz      .output_over
-
-        cmp     BYTE [r13 + rbx], tkDrop
-        jz      .output_drop
-
-        cmp     BYTE [r13 + rbx], tk2Dup
-        jz      .output_2dup
-
-        cmp     BYTE [r13 + rbx], tk2Swap
-        jz      .output_2swap
-
-        cmp     BYTE [r13 + rbx], tk2Drop
-        jz      .output_2drop
-
-        cmp     BYTE [r13 + rbx], tkIf
-        jz      .output_if
-
-        cmp     BYTE [r13 + rbx], tkThen
-        jz      .output_then
-
-        cmp     BYTE [r13 + rbx], tkElse
-        jz      .output_else
-
-        cmp     BYTE [r13 + rbx], tkWhile
-        jz      .output_while
-
-        cmp     BYTE [r13 + rbx], tkDo
-        jz      .output_do
-        
-        cmp     BYTE [r13 + rbx], tkProc
-        jz      .output_proc
-
-        cmp     BYTE [r13 + rbx], tkEnd
-        jz      .output_end
-
-        cmp     BYTE [r13 + rbx], tkIdent
-        jz      .output_ident
-
-        cmp     BYTE [r13 + rbx], tkSys0
-        jz      .output_syscall0
-        cmp     BYTE [r13 + rbx], tkSys1
-        jz      .output_syscall1
-        cmp     BYTE [r13 + rbx], tkSys2
-        jz      .output_syscall2
-        cmp     BYTE [r13 + rbx], tkSys3
-        jz      .output_syscall3
-        cmp     BYTE [r13 + rbx], tkSys4
-        jz      .output_syscall4
-        cmp     BYTE [r13 + rbx], tkSys5
-        jz      .output_syscall5
-        cmp     BYTE [r13 + rbx], tkSys6
-        jz      .output_syscall6
-
-        cmp     BYTE [r13 + rbx], tkPushStr
-        jz      .output_push_string
-
-        cmp     BYTE [r13 + rbx], tkNoOp
-        jz      .output_jmp_end ; skip no ops
-
-        ; TODO: handle unknown bytecode
-        ; could also detect wrong offsetting
-        jmp     .output_jmp_end
-
-        .output_push_int:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PUSH
-            mov     rdx, ASM_PUSH_LEN
-            call    mem_move
-            add     r15, ASM_PUSH_LEN
-        
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds ; rdx = len
-        
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20 ; reset stack
-            add     r15, rdx
-            
-            mov     BYTE [r14 + r15], 10
-            add     r15, 1
-            jmp    .output_jmp_end
-        
-        .output_push_string:
-            ; - 64  = string mem
-            ; layout: 8 byte id, 8 byte len, 8 byte ptr | 24 len
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PUSH_STR_L
-            mov     rdx, ASM_PUSH_STR_L_LEN
-            call    mem_move
-            add     r15, ASM_PUSH_STR_L_LEN
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PUSH_STR
-            mov     rdx, ASM_PUSH_STR_LEN
-            call    mem_move
-            add     r15, ASM_PUSH_STR_LEN
-
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_CONST_STR_L
-            mov     rdx, ASM_CONST_STR_L_LEN
-            call    mem_move
-            add     r15, ASM_CONST_STR_L_LEN
-            
-            lea     rdi, [r14 + r15]
-            mov     rsi, newline
-            mov     rdx, 1
-            call    mem_move
-            add     r15, 1
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PUSH_STR
-            mov     rdx, ASM_PUSH_STR_LEN
-            call    mem_move
-            add     r15, ASM_PUSH_STR_LEN
-            
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, newline
-            mov     rdx, 1
-            call    mem_move
-            add     r15, 1
-
-           
-            jmp     .output_jmp_end
-
-        .output_add:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_ADD
-            mov     rdx, ASM_ADD_LEN
-            call    mem_move
-            add     r15, ASM_ADD_LEN
-            jmp    .output_jmp_end
-
-        .output_sub:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SUB
-            mov     rdx, ASM_SUB_LEN
-            call    mem_move
-            add     r15, ASM_SUB_LEN
-            jmp    .output_jmp_end
-
-        .output_mul:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_MUL
-            mov     rdx, ASM_MUL_LEN
-            call    mem_move
-            add     r15, ASM_MUL_LEN
-            jmp    .output_jmp_end
-
-        .output_div:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_DIV
-            mov     rdx, ASM_DIV_LEN
-            call    mem_move
-            add     r15, ASM_DIV_LEN
-            jmp    .output_jmp_end
-
-        .output_mod:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_MOD
-            mov     rdx, ASM_MOD_LEN
-            call    mem_move
-            add     r15, ASM_MOD_LEN
-            jmp    .output_jmp_end
-        
-        .output_modiv:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_MODIV
-            mov     rdx, ASM_MODIV_LEN
-            call    mem_move
-            add     r15, ASM_MODIV_LEN
-            jmp    .output_jmp_end
-
-       .output_equal:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_EQUAL
-            mov     rdx, ASM_EQUAL_LEN
-            call    mem_move
-            add     r15, ASM_EQUAL_LEN
-            jmp    .output_jmp_end
-
-       .output_greater:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_GREATER
-            mov     rdx, ASM_GREATER_LEN
-            call    mem_move
-            add     r15, ASM_GREATER_LEN
-            jmp    .output_jmp_end
-
-       .output_lesser:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_LESSER
-            mov     rdx, ASM_LESSER_LEN
-            call    mem_move
-            add     r15, ASM_LESSER_LEN
-            jmp    .output_jmp_end
-
-       .output_greater_equal:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_GEQUAL
-            mov     rdx, ASM_GEQUAL_LEN
-            call    mem_move
-            add     r15, ASM_GEQUAL_LEN
-            jmp    .output_jmp_end
-
-        .output_lesser_equal:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_LEQUAL
-            mov     rdx, ASM_LEQUAL_LEN
-            call    mem_move
-            add     r15, ASM_LEQUAL_LEN
-            jmp    .output_jmp_end
-      
-        .output_bit_and:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_BIT_AND
-            mov     rdx, ASM_BIT_AND_LEN
-            call    mem_move
-            add     r15, ASM_BIT_AND_LEN
-            jmp     .output_jmp_end
-
-        .output_bit_or:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_BIT_OR
-            mov     rdx, ASM_BIT_OR_LEN
-            call    mem_move
-            add     r15, ASM_BIT_OR_LEN
-            jmp     .output_jmp_end
-
-        .output_and:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_AND
-            mov     rdx, ASM_AND_LEN
-            call    mem_move
-            add     r15, ASM_AND_LEN
-            jmp    .output_jmp_end
-
-       .output_or:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_OR
-            mov     rdx, ASM_OR_LEN
-            call    mem_move
-            add     r15, ASM_OR_LEN
-            jmp    .output_jmp_end
-
-
-        .output_dump:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_DUMP
-            mov     rdx, ASM_DUMP_LEN
-            call    mem_move
-            add     r15, ASM_DUMP_LEN
-            jmp    .output_jmp_end
-        
-        .output_dup:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_DUP
-            mov     rdx, ASM_DUP_LEN
-            call    mem_move
-            add     r15, ASM_DUP_LEN
-            jmp    .output_jmp_end
-        
-        .output_swap:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SWAP
-            mov     rdx, ASM_SWAP_LEN
-            call    mem_move
-            add     r15, ASM_SWAP_LEN
-            jmp    .output_jmp_end
- 
-        .output_rot:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_ROT
-            mov     rdx, ASM_ROT_LEN
-            call    mem_move
-            add     r15, ASM_ROT_LEN
-            jmp    .output_jmp_end 
- 
-        .output_over:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_OVER
-            mov     rdx, ASM_OVER_LEN
-            call    mem_move
-            add     r15, ASM_OVER_LEN
-            jmp    .output_jmp_end
- 
-        .output_drop:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_DROP
-            mov     rdx, ASM_DROP_LEN
-            call    mem_move
-            add     r15, ASM_DROP_LEN
-            jmp    .output_jmp_end
- 
-        .output_2dup:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_2DUP
-            mov     rdx, ASM_2DUP_LEN
-            call    mem_move
-            add     r15, ASM_2DUP_LEN
-            jmp    .output_jmp_end
- 
-        .output_2swap:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_2SWAP
-            mov     rdx, ASM_2SWAP_LEN
-            call    mem_move
-            add     r15, ASM_2SWAP_LEN
-            jmp    .output_jmp_end
- 
-        .output_2drop:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_2SWAP
-            mov     rdx, ASM_2SWAP_LEN
-            call    mem_move
-            add     r15, ASM_2SWAP_LEN
-            jmp    .output_jmp_end
- 
-        
-        .output_if:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_IF
-            mov     rdx, ASM_IF_LEN
-            call    mem_move
-            add     r15, ASM_IF_LEN
-
-            jmp     .output_jmp_end
-        
-        .output_then:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_THEN
-            mov     rdx, ASM_THEN_LEN
-            call    mem_move
-            add     r15, ASM_THEN_LEN
-
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-            mov     BYTE [r14 + r15], 10
-            add     r15, 1
-            jmp     .output_jmp_end
-            
-        .output_else:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_ELSE
-            mov     rdx, ASM_ELSE_LEN
-            call    mem_move
-            add     r15, ASM_ELSE_LEN
-            
-            ; jump to end after if
-            
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-            mov     BYTE [r14 + r15], 10
-            add     r15, 1
-            
-            ; jump for if
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_ADDR
-            mov     rdx, ASM_ADDR_LEN
-            call    mem_move
-            add     r15, ASM_ADDR_LEN
-            
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 17]
-            call    uitds
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-            
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_COLON
-            mov     rdx, ASM_COLON_LEN
-            call    mem_move
-            add     r15, ASM_COLON_LEN
-            
-            jmp     .output_jmp_end
-            
-
-        .output_while:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_WHILE
-            mov     rdx, ASM_WHILE_LEN
-            call    mem_move
-            add     r15, ASM_WHILE_LEN
-
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-            
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_COLON
-            mov     rdx, ASM_COLON_LEN
-            call    mem_move
-            add     r15, ASM_COLON_LEN
-
-            jmp     .output_jmp_end
-
-
-        .output_do:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_DO
-            mov     rdx, ASM_DO_LEN
-            call    mem_move
-            add     r15, ASM_DO_LEN
-
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9]
-            call    uitds
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-            mov     BYTE [r14 + r15], 10
-            add     r15, 1
-            jmp     .output_jmp_end
-
-
-        .output_proc:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PROC_DEC
-            mov     rdx, ASM_PROC_DEC_LEN
-            call    mem_move
-            add     r15, ASM_PROC_DEC_LEN
-            
-            ; SKIPPING
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_JMP
-            mov     rdx, ASM_JMP_LEN
-            call    mem_move
-            add     r15, ASM_JMP_LEN
-            
-            
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9] ; addr end
-            call    uitds
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-            mov     BYTE [r14 + r15], 10
-            add     r15, 1
-
-            ; DECL
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PROC_L
-            mov     rdx, ASM_PROC_L_LEN
-            call    mem_move
-            add     r15, ASM_PROC_L_LEN
-            
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 9] ; addr end
-            call    uitds
-            lea     rdi, [r14 + r15]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r15, rdx
-
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_COLON
-            mov     rdx, ASM_COLON_LEN
-            call    mem_move
-            add     r15, ASM_COLON_LEN
-
-            ; PREPARATION
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_PROC_PREP
-            mov     rdx, ASM_PROC_PREP_LEN
-            call    mem_move
-            add     r15, ASM_PROC_PREP_LEN
-
-            jmp     .output_jmp_end
-
-
-        .output_end:
-            cmp     BYTE [r13 + rbx + 9], varEndIf
-            jz      .output_end_var_if
-            cmp     BYTE [r13 + rbx + 9], varEndDo
-            jz      .output_end_var_do
-            cmp     BYTE [r13 + rbx + 9], varEndProc
-            jz      .output_end_var_proc
-            jmp     error_illegal 
-            .output_end_var_if: 
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_END_L
-                mov     rdx, ASM_END_L_LEN
-                call    mem_move
-                add     r15, ASM_END_L_LEN
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_ADDR
-                mov     rdx, ASM_ADDR_LEN
-                call    mem_move
-                add     r15, ASM_ADDR_LEN
-
-                lea     rsi, [rsp]
-                sub     rsp, 20
-                mov     rdi, [r13 + rbx + 10]
-                call    uitds
-                lea     rdi, [r14 + r15]
-                mov     rsi, rax
-                call    mem_move
-                add     rsp, 20
-                add     r15, rdx
-                
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_COLON
-                mov     rdx, ASM_COLON_LEN
-                call    mem_move
-                add     r15, ASM_COLON_LEN
-
-                jmp     .output_jmp_end
-
-            .output_end_var_do:
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_END_L
-                mov     rdx, ASM_END_L_LEN
-                call    mem_move
-                add     r15, ASM_END_L_LEN
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_JMP
-                mov     rdx, ASM_JMP_LEN
-                call    mem_move
-                add     r15, ASM_JMP_LEN
-                
-                lea     rsi, [rsp]
-                sub     rsp, 20
-                mov     rdi, [r13 + rbx + 10]
-                call    uitds
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, rax
-                call    mem_move
-                add     rsp, 20
-                add     r15, rdx
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, newline
-                mov     rdx, 1
-                call    mem_move
-                add     r15, 1
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_ADDR
-                mov     rdx, ASM_ADDR_LEN
-                call    mem_move
-                add     r15, ASM_ADDR_LEN
-                
-                lea     rsi, [rsp]
-                sub     rsp, 20
-                mov     rdi, [r13 + rbx + 18]
-                call    uitds
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, rax
-                call    mem_move
-                add     rsp, 20
-                add     r15, rdx
-                
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_COLON
-                mov     rdx, ASM_COLON_LEN
-                call    mem_move
-                add     r15, ASM_COLON_LEN
-
-                jmp     .output_jmp_end
-
-            .output_end_var_proc:
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_PROC_END
-                mov     rdx, ASM_PROC_END_LEN
-                call    mem_move
-                add     r15, ASM_PROC_END_LEN
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_ADDR
-                mov     rdx, ASM_ADDR_LEN
-                call    mem_move
-                add     r15, ASM_ADDR_LEN
-
-                lea     rsi, [rsp]
-                sub     rsp, 20
-                mov     rdi, [r13 + rbx + 10]
-                call    uitds
-                lea     rdi, [r14 + r15]
-                mov     rsi, rax
-                call    mem_move
-                add     rsp, 20
-                add     r15, rdx
-                
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_COLON
-                mov     rdx, ASM_COLON_LEN
-                call    mem_move
-                add     r15, ASM_COLON_LEN
-
-                jmp     .output_jmp_end
-
-
-        .output_ident:
-            cmp     BYTE [r13 + rbx + 9], varIdentProc
-            jz      .output_proc_call
-            cmp     BYTE [r13 + rbx + 9], varIdentIgnore
-            jz      .output_jmp_end
-            ; TODO: use this to detect identifiers without decl
-            jmp     error_illegal
-
-            .output_proc_call:
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_PROC_CALL_L
-                mov     rdx, ASM_PROC_CALL_L_LEN
-                call    mem_move
-                add     r15, ASM_PROC_CALL_L_LEN
-                
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_CALL_START
-                mov     rdx, ASM_CALL_START_LEN
-                call    mem_move
-                add     r15, ASM_CALL_START_LEN
-                ;; TODO
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_CALL
-                mov     rdx, ASM_CALL_LEN
-                call    mem_move
-                add     r15, ASM_CALL_LEN
-            
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_PROC_L
-                mov     rdx, ASM_PROC_L_LEN
-                call    mem_move
-                add     r15, ASM_PROC_L_LEN
-
-                lea     rsi, [rsp]
-                sub     rsp, 20
-                mov     rdi, [r13 + rbx + 10]
-                call    uitds
-                lea     rdi, [r14 + r15]
-                mov     rsi, rax
-                call    mem_move
-                add     rsp, 20
-                add     r15, rdx
-
-
-                lea     rdi, [r14 + r15]
-                mov     rsi, ASM_CALL_END
-                mov     rdx, ASM_CALL_END_LEN
-                call    mem_move
-                add     r15, ASM_CALL_END_LEN
-
-                jmp     .output_jmp_end
-
-        .output_syscall0:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SYS0
-            mov     rdx, ASM_SYS0_LEN
-            call    mem_move
-            add     r15, ASM_SYS0_LEN
-            jmp     .output_jmp_end
-     
-        .output_syscall1:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SYS1
-            mov     rdx, ASM_SYS1_LEN
-            call    mem_move
-            add     r15, ASM_SYS1_LEN
-            jmp     .output_jmp_end
-
-
-        .output_syscall2:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SYS2
-            mov     rdx, ASM_SYS2_LEN
-            call    mem_move
-            add     r15, ASM_SYS2_LEN
-            jmp     .output_jmp_end
-
-
-        .output_syscall3:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SYS3
-            mov     rdx, ASM_SYS3_LEN
-            call    mem_move
-            add     r15, ASM_SYS3_LEN
-            jmp     .output_jmp_end
-
-
-        .output_syscall4:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SYS4
-            mov     rdx, ASM_SYS4_LEN
-            call    mem_move
-            add     r15, ASM_SYS4_LEN
-            jmp     .output_jmp_end
-
-
-        .output_syscall5:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SYS5
-            mov     rdx, ASM_SYS5_LEN
-            call    mem_move
-            add     r15, ASM_SYS5_LEN
-            jmp     .output_jmp_end
- 
-        .output_syscall6:
-            lea     rdi, [r14 + r15]
-            mov     rsi, ASM_SYS6
-            mov     rdx, ASM_SYS6_LEN
-            call    mem_move
-            add     r15, ASM_SYS6_LEN
-            jmp     .output_jmp_end
-
-        .output_jmp_end:
-
-        ; - BUFFER OUTPUT GROW -
-        mov     rax, [rbp - 128] ; current max
-        mov     rcx, GROW_SIZE ; divisor
-        xor     rdx, rdx ; rest
-        div     rcx ; rax => 50% of current
-        cmp     r15, rax 
-        jg      .grow_output_buffer
-        jmp     .not_grow_output_buffer
-        .grow_output_buffer:
-        mov     rdi, [rbp - 120]
-        mov     rsi, [rbp - 128]
-        mov     rax, rsi
-        mov     rcx, GROW_SIZE
-        mul     rcx
-        mov     rdx, rax
-        call    remap_memory
-        mov     [rbp - 120], rax
-        mov     [rbp - 128], rdx
-        .not_grow_output_buffer:
-
-        add rbx, 32
-        cmp rbx, r12
-        jnz .loop_bytecode_to_asm
-    
-  
-    lea     rdi, [r14 + r15]
-    mov     rsi, ASM_ENDING
-    mov     rdx, ASM_ENDING_LEN
-    call    mem_move
-    add     r15, ASM_ENDING_LEN
-
-    lea     rdi, [r14 + r15]
-    mov     rsi, ASM_CONST_DATA_SECTION
-    mov     rdx, ASM_CONST_DATA_SECTION_LEN
-    call    mem_move
-    add     r15, ASM_CONST_DATA_SECTION_LEN
-    ; CONST DATA:
-    xor     rbx, rbx ; counter inc in 24
-    mov     rax, [rbp - 64] ; ptr string mem
-    lea     r13, [rax]
-    .loop_add_const_strings:
-        cmp     rbx, QWORD [rbp - 80]
-        jz      .exit_loop_add_const_strings
-        
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_CONST_STR
-        mov     rdx, ASM_CONST_STR_LEN
-        call    mem_move
-        add     r15, ASM_CONST_STR_LEN
-    
-        lea     rsi, [rsp]
-        sub     rsp, 20
-        mov     rdi, [r13 + rbx]
-        call    uitds
-        lea     rdi, [r14 + r15]
-        mov     rsi, rax
-        call    mem_move
-        add     rsp, 20
-        add     r15, rdx
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_DB_WORD
-        mov     rdx, ASM_DB_WORD_LEN
-        call    mem_move
-        add     r15, ASM_DB_WORD_LEN
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, [r13 + rbx + 16]
-        mov     rdx, [r13 + rbx + 8]
-        call    mem_move
-        add     r15, [r13 + rbx + 8]
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_STR_END
-        mov     rdx, ASM_STR_END_LEN
-        call    mem_move
-        add     r15, ASM_STR_END_LEN
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_CONST_STR
-        mov     rdx, ASM_CONST_STR_LEN
-        call    mem_move
-        add     r15, ASM_CONST_STR_LEN
-        
-        lea     rsi, [rsp]
-        sub     rsp, 20
-        mov     rdi, [r13 + rbx]
-        call    uitds
-        lea     rdi, [r14 + r15]
-        mov     rsi, rax
-        call    mem_move
-        add     rsp, 20
-        add     r15, rdx
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_CONST_STR_L
-        mov     rdx, ASM_CONST_STR_L_LEN
-        call    mem_move
-        add     r15, ASM_CONST_STR_L_LEN
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_EQ_LEN_WORD
-        mov     rdx, ASM_EQ_LEN_WORD_LEN
-        call    mem_move
-        add     r15, ASM_EQ_LEN_WORD_LEN
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_CONST_STR
-        mov     rdx, ASM_CONST_STR_LEN
-        call    mem_move
-        add     r15, ASM_CONST_STR_LEN
-
-        lea     rsi, [rsp]
-        sub     rsp, 20
-        mov     rdi, [r13 + rbx]
-        call    uitds
-        lea     rdi, [r14 + r15]
-        mov     rsi, rax
-        call    mem_move
-        add     rsp, 20
-        add     r15, rdx
-
-        lea     rdi, [r14 + r15]
-        mov     rsi, ASM_STR_LEN_END
-        mov     rdx, ASM_STR_LEN_END_LEN
-        call    mem_move
-        add     r15, ASM_STR_LEN_END_LEN
-
-        add     rbx, 24
-        jmp .loop_add_const_strings
-    .exit_loop_add_const_strings:
-
-    ; MUTABLE DATA
-    lea     rdi, [r14 + r15]
-    mov     rsi, ASM_MUTABLE_DATA_SECTION
-    mov     rdx, ASM_MUTABLE_DATA_SECTION_LEN
-    call    mem_move
-    add     r15, ASM_MUTABLE_DATA_SECTION_LEN
-
-
-    lea     rdi, [r14 + r15]
-    mov     rsi, ASM_RETURN_STACK
-    mov     rdx, ASM_RETURN_STACK_LEN
-    call    mem_move
-    add     r15, ASM_RETURN_STACK_LEN
+    lea     r14, [rsp - 8]
+    push    rax ; ptr output | r15 - 160
+    push    rdi ; len output | r15 - 168
+    xor     rax, rax
+    push    rax ; offset output | r15 - 176
+
+
+    mov     rdi, r15
+    mov     rsi, r14
+    call    create_assembly
+
+    lea     rdi, [r15 - 24]
+    mov     rsi, r14
+    call    assembly_add_string_constants
+
+    lea     rdi, [r15 - 104]
+    mov     rsi, r14
+    call    assembly_add_mutable_constants
+
+    mov     rdi, r14
+    call    assembly_add_finish
 
     mov     rdi, [arg_ptr]
     mov     rdi, [rdi + 16]
@@ -1220,26 +228,41 @@ entry $
     xor     rdx, rdx
     mov     rax, SYS_OPEN
     syscall
-    ; write assembly
+    
     mov     rdi, rax
-    mov     rsi, [rbp - 120]
-    mov     rdx, r15
+    mov     rsi, [r14]
+    mov     rdx, [r14 - 16]
     mov     rax, SYS_WRITE
     syscall
 
-    ; dealloc file
-    mov     rdi, [rbp - 8]
-    mov     rsi, [rbp - 16]
-    call unmap_memory
+    ; unmap token memory
+    mov     rdi, [r15 -  0]
+    mov     rsi, [r15 -  8]
+    call    unmap_memory
 
-    ; dealloc tokenspace
-    mov     rdi, [rbp - 48]
-    mov     rsi, [rbp - 56]
-    call unmap_memory
+    ; unmap string memory
+    mov     rdi, [r15 - 24]
+    mov     rsi, [r15 - 32]
+    call    unmap_memory
 
-    mov     rsp, rbp
-    pop     rbp
+    ; unmap procedure memory
+    mov     rdi, [r15 - 48]
+    mov     rsi, [r15 - 56]
+    call    unmap_memory
 
+    ; unmap include memory
+    mov     rdi, [r15 - 72]
+    mov     rsi, [r15 - 80]
+    call    unmap_memory
+
+    ; unmap variable memory
+    mov     rdi, [r15 - 104]
+    mov     rsi, [r15 - 112]
+    call    unmap_memory
+
+    mov     rdi, [r15 -  160]
+    mov     rsi, [r15 -  168]
+    call    unmap_memory
 
     mov     rdi, 0
     mov     rax, SYS_EXIT
@@ -1418,8 +441,6 @@ tokenize_file:
             mov     DWORD [rdi + rbx + 1], eax
             mov     DWORD [rdi + rbx + 5], r8d
             mov     DWORD [rdi + rbx + 9], r9d
-            mov     r8, r14
-            lea     rax, [r13]
 
             mov     rcx, [r15 - 24] ; ptr string mem
             mov     rdx, [r15 - 40] ; string mem offset
@@ -1428,9 +449,9 @@ tokenize_file:
             mov     QWORD [rdi + rbx + 16], r10 ; string id
 
             mov     QWORD [rcx + rdx], r10 ; string id
-            mov     QWORD [rcx + rdx + 8], r8 ; string len
-            mov     QWORD [rcx + rdx + 16], rax ; ptr string
-            
+            mov     QWORD [rcx + rdx + 8], r12 ; ptr string
+            mov     QWORD [rcx + rdx + 16], r13 ; len string
+
             add     QWORD [r15 - 40], 24
             inc     QWORD [r15 - 128]
 
@@ -2237,6 +1258,1183 @@ cross_reference_tokens:
     pop     rbp
     ret
 
+
+; input:
+;   rdi: tokens
+;   rsi: output
+create_assembly:
+    push    rbp
+    mov     rbp, rsp
+
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
+
+    mov     r15, rdi
+    mov     r14, rsi
+
+    xor     rbx, rbx
+    xor     r12, r12
+    mov     r13, [r15]
+
+    mov     r10, [r14]
+    lea     rdi, [r10 + r12]
+    mov     rsi, ASM_HEADER
+    mov     rdx, ASM_HEADER_LEN
+    call    mem_move
+    add     r12, ASM_HEADER_LEN
+
+    ; pseudo ast
+    .assembly:
+        cmp     rbx, [r15 - 16]
+        jz      .assembly_end
+        
+        cmp     byte [r13 + rbx], tkPushInt
+        jz      .output_push_int
+        
+        cmp     BYTE [r13 + rbx], tkAdd
+        jz      .output_add
+
+        cmp     BYTE [r13 + rbx], tkSub
+        jz      .output_sub
+
+        cmp     BYTE [r13 + rbx], tkMul
+        jz      .output_mul
+
+        cmp     BYTE [r13 + rbx], tkDiv
+        jz      .output_div
+
+        cmp     BYTE [r13 + rbx], tkMod
+        jz      .output_mod
+        
+        cmp     BYTE [r13 + rbx], tkModiv
+        jz      .output_modiv
+
+        cmp     BYTE [r13 + rbx], tkEqual
+        jz      .output_equal
+
+        cmp     BYTE [r13 + rbx], tkGreater
+        jz      .output_greater
+
+        cmp     BYTE [r13 + rbx], tkLesser
+        jz      .output_lesser
+
+        cmp     BYTE [r13 + rbx], tkGEqual
+        jz      .output_greater_equal
+
+        cmp     BYTE [r13 + rbx], tkLEqual
+        jz      .output_lesser_equal
+
+        cmp     BYTE [r13 + rbx], tkBitAnd
+        jz      .output_bit_and
+
+        cmp     BYTE [r13 + rbx], tkBitOr
+        jz      .output_bit_or
+
+        cmp     BYTE [r13 + rbx], tkAnd
+        jz      .output_and
+
+        cmp     BYTE [r13 + rbx], tkOr
+        jz      .output_or
+
+        cmp     BYTE [r13 + rbx], tkDump
+        jz      .output_dump
+
+        cmp     BYTE [r13 + rbx], tkDup
+        jz      .output_dup
+
+        cmp     BYTE [r13 + rbx], tkSwap
+        jz      .output_swap
+
+        cmp     BYTE [r13 + rbx], tkRot
+        jz      .output_rot
+
+        cmp     BYTE [r13 + rbx], tkOver
+        jz      .output_over
+
+        cmp     BYTE [r13 + rbx], tkDrop
+        jz      .output_drop
+
+        cmp     BYTE [r13 + rbx], tk2Dup
+        jz      .output_2dup
+
+        cmp     BYTE [r13 + rbx], tk2Swap
+        jz      .output_2swap
+
+        cmp     BYTE [r13 + rbx], tk2Drop
+        jz      .output_2drop
+
+        cmp     BYTE [r13 + rbx], tkIf
+        jz      .output_if
+
+        cmp     BYTE [r13 + rbx], tkThen
+        jz      .output_then
+
+        cmp     BYTE [r13 + rbx], tkElse
+        jz      .output_else
+
+        cmp     BYTE [r13 + rbx], tkWhile
+        jz      .output_while
+
+        cmp     BYTE [r13 + rbx], tkDo
+        jz      .output_do
+        
+        cmp     BYTE [r13 + rbx], tkProc
+        jz      .output_proc
+
+        cmp     BYTE [r13 + rbx], tkEnd
+        jz      .output_end
+
+        cmp     BYTE [r13 + rbx], tkIdent
+        jz      .output_ident
+
+        cmp     BYTE [r13 + rbx], tkSys0
+        jz      .output_syscall0
+        
+        cmp     BYTE [r13 + rbx], tkSys1
+        jz      .output_syscall1
+        
+        cmp     BYTE [r13 + rbx], tkSys2
+        jz      .output_syscall2
+        
+        cmp     BYTE [r13 + rbx], tkSys3
+        jz      .output_syscall3
+        
+        cmp     BYTE [r13 + rbx], tkSys4
+        jz      .output_syscall4
+        
+        cmp     BYTE [r13 + rbx], tkSys5
+        jz      .output_syscall5
+        
+        cmp     BYTE [r13 + rbx], tkSys6
+        jz      .output_syscall6
+
+        cmp     BYTE [r13 + rbx], tkPushStr
+        jz      .output_push_string
+
+        cmp     BYTE [r13 + rbx], tkNoOp
+        jz      .assembly_next ; skip no ops
+
+
+        jmp     .assembly_next
+        .output_push_int:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PUSH
+            mov     rdx, ASM_PUSH_LEN
+            call    mem_move
+            add     r12, ASM_PUSH_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     byte [r10 + r12], 10
+            add     r12, 1
+            jmp     .assembly_next
+
+        .output_push_string:
+
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PUSH_STR_L
+            mov     rdx, ASM_PUSH_STR_L_LEN
+            call    mem_move
+            add     r12, ASM_PUSH_STR_L_LEN
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PUSH_STR
+            mov     rdx, ASM_PUSH_STR_LEN
+            call    mem_move
+            add     r12, ASM_PUSH_STR_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_CONST_STR_L
+            mov     rdx, ASM_CONST_STR_L_LEN
+            call    mem_move
+            add     r12, ASM_CONST_STR_L_LEN
+            
+            lea     rdi, [r10 + r12]
+            mov     rsi, newline
+            mov     rdx, 1
+            call    mem_move
+            add     r12, 1
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PUSH_STR
+            mov     rdx, ASM_PUSH_STR_LEN
+            call    mem_move
+            add     r12, ASM_PUSH_STR_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, newline
+            mov     rdx, 1
+            call    mem_move
+            add     r12, 1
+
+            jmp     .assembly_next
+
+        .output_add:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ADD
+            mov     rdx, ASM_ADD_LEN
+            call    mem_move
+            add     r12, ASM_ADD_LEN
+            jmp     .assembly_next
+
+        .output_sub:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SUB
+            mov     rdx, ASM_SUB_LEN
+            call    mem_move
+            add     r12, ASM_SUB_LEN
+            jmp     .assembly_next
+
+        .output_mul:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_MUL
+            mov     rdx, ASM_MUL_LEN
+            call    mem_move
+            add     r12, ASM_MUL_LEN
+            jmp     .assembly_next
+
+        .output_div:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_DIV
+            mov     rdx, ASM_DIV_LEN
+            call    mem_move
+            add     r12, ASM_DIV_LEN
+            jmp     .assembly_next
+
+        .output_mod:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_MOD
+            mov     rdx, ASM_MOD_LEN
+            call    mem_move
+            add     r12, ASM_MOD_LEN
+            jmp     .assembly_next
+        
+        .output_modiv:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_MODIV
+            mov     rdx, ASM_MODIV_LEN
+            call    mem_move
+            add     r12, ASM_MODIV_LEN
+            jmp     .assembly_next
+
+        .output_equal:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_EQUAL
+            mov     rdx, ASM_EQUAL_LEN
+            call    mem_move
+            add     r12, ASM_EQUAL_LEN
+            jmp     .assembly_next
+
+        .output_greater:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_GREATER
+            mov     rdx, ASM_GREATER_LEN
+            call    mem_move
+            add     r12, ASM_GREATER_LEN
+            jmp     .assembly_next
+
+        .output_lesser:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_LESSER
+            mov     rdx, ASM_LESSER_LEN
+            call    mem_move
+            add     r12, ASM_LESSER_LEN
+            jmp     .assembly_next
+
+        .output_greater_equal:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_GEQUAL
+            mov     rdx, ASM_GEQUAL_LEN
+            call    mem_move
+            add     r12, ASM_GEQUAL_LEN
+            jmp     .assembly_next
+
+        .output_lesser_equal:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_LEQUAL
+            mov     rdx, ASM_LEQUAL_LEN
+            call    mem_move
+            add     r12, ASM_LEQUAL_LEN
+            jmp     .assembly_next
+      
+        .output_bit_and:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_BIT_AND
+            mov     rdx, ASM_BIT_AND_LEN
+            call    mem_move
+            add     r12, ASM_BIT_AND_LEN
+            jmp     .assembly_next
+
+        .output_bit_or:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_BIT_OR
+            mov     rdx, ASM_BIT_OR_LEN
+            call    mem_move
+            add     r12, ASM_BIT_OR_LEN
+            jmp     .assembly_next
+
+        .output_and:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_AND
+            mov     rdx, ASM_AND_LEN
+            call    mem_move
+            add     r12, ASM_AND_LEN
+            jmp     .assembly_next
+
+        .output_or:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_OR
+            mov     rdx, ASM_OR_LEN
+            call    mem_move
+            add     r12, ASM_OR_LEN
+            jmp     .assembly_next
+
+
+        .output_dump:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_DUMP
+            mov     rdx, ASM_DUMP_LEN
+            call    mem_move
+            add     r12, ASM_DUMP_LEN
+            jmp     .assembly_next
+        
+        .output_dup:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_DUP
+            mov     rdx, ASM_DUP_LEN
+            call    mem_move
+            add     r12, ASM_DUP_LEN
+            jmp    .assembly_next
+        
+        .output_swap:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SWAP
+            mov     rdx, ASM_SWAP_LEN
+            call    mem_move
+            add     r12, ASM_SWAP_LEN
+            jmp    .assembly_next
+ 
+        .output_rot:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ROT
+            mov     rdx, ASM_ROT_LEN
+            call    mem_move
+            add     r12, ASM_ROT_LEN
+            jmp    .assembly_next 
+ 
+        .output_over:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_OVER
+            mov     rdx, ASM_OVER_LEN
+            call    mem_move
+            add     r12, ASM_OVER_LEN
+            jmp    .assembly_next
+ 
+        .output_drop:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_DROP
+            mov     rdx, ASM_DROP_LEN
+            call    mem_move
+            add     r12, ASM_DROP_LEN
+            jmp    .assembly_next
+ 
+        .output_2dup:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_2DUP
+            mov     rdx, ASM_2DUP_LEN
+            call    mem_move
+            add     r12, ASM_2DUP_LEN
+            jmp    .assembly_next
+ 
+        .output_2swap:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_2SWAP
+            mov     rdx, ASM_2SWAP_LEN
+            call    mem_move
+            add     r12, ASM_2SWAP_LEN
+            jmp    .assembly_next
+ 
+        .output_2drop:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_2SWAP
+            mov     rdx, ASM_2SWAP_LEN
+            call    mem_move
+            add     r12, ASM_2SWAP_LEN
+            jmp    .assembly_next
+ 
+        
+        .output_if:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_IF
+            mov     rdx, ASM_IF_LEN
+            call    mem_move
+            add     r12, ASM_IF_LEN
+            jmp     .assembly_next
+        
+        .output_then:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_THEN
+            mov     rdx, ASM_THEN_LEN
+            call    mem_move
+            add     r12, ASM_THEN_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     BYTE [r10 + r12], 10
+            add     r12, 1
+            jmp     .assembly_next
+
+        .output_else:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ELSE
+            mov     rdx, ASM_ELSE_LEN
+            call    mem_move
+            add     r12, ASM_ELSE_LEN
+            
+            ; jump to end after if
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     BYTE [r10 + r12], 10
+            add     r12, 1
+            
+            ; jump for if
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ADDR
+            mov     rdx, ASM_ADDR_LEN
+            call    mem_move
+            add     r12, ASM_ADDR_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+            
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+            jmp     .assembly_next
+            
+
+        .output_while:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_WHILE
+            mov     rdx, ASM_WHILE_LEN
+            call    mem_move
+            add     r12, ASM_WHILE_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+            
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+
+            jmp     .assembly_next
+
+
+        .output_do:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_DO
+            mov     rdx, ASM_DO_LEN
+            call    mem_move
+            add     r12, ASM_DO_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     BYTE [r10 + r12], 10
+            add     r12, 1
+            jmp     .assembly_next
+
+
+        .output_proc:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PROC_DEC
+            mov     rdx, ASM_PROC_DEC_LEN
+            call    mem_move
+            add     r12, ASM_PROC_DEC_LEN
+            
+            ; SKIPPING
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_JMP
+            mov     rdx, ASM_JMP_LEN
+            call    mem_move
+            add     r12, ASM_JMP_LEN
+            
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16] ; addr end
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     BYTE [r10 + r12], 10
+            add     r12, 1
+
+            ; DECL
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PROC_L
+            mov     rdx, ASM_PROC_L_LEN
+            call    mem_move
+            add     r12, ASM_PROC_L_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16] ; addr end
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+
+            ; PREPARATION
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PROC_PREP
+            mov     rdx, ASM_PROC_PREP_LEN
+            call    mem_move
+            add     r12, ASM_PROC_PREP_LEN
+
+            jmp     .assembly_next
+
+        .output_end:
+            cmp     BYTE [r13 + rbx + 13], varEndIf
+            jz      .output_end_var_if
+            cmp     BYTE [r13 + rbx + 13], varEndDo
+            jz      .output_end_var_do
+            cmp     BYTE [r13 + rbx + 13], varEndProc
+            jz      .output_end_var_proc
+
+            jmp     error_illegal ; TODO: ERROR
+            .output_end_var_if: 
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_END_L
+                mov     rdx, ASM_END_L_LEN
+                call    mem_move
+                add     r12, ASM_END_L_LEN
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_ADDR
+                mov     rdx, ASM_ADDR_LEN
+                call    mem_move
+                add     r12, ASM_ADDR_LEN
+
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 16]
+                call    uitds
+                lea     rdi, [r10 + r12]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r12, rdx
+                
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_COLON
+                mov     rdx, ASM_COLON_LEN
+                call    mem_move
+                add     r12, ASM_COLON_LEN
+
+                jmp     .assembly_next
+
+            .output_end_var_do:
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_END_L
+                mov     rdx, ASM_END_L_LEN
+                call    mem_move
+                add     r12, ASM_END_L_LEN
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_JMP
+                mov     rdx, ASM_JMP_LEN
+                call    mem_move
+                add     r12, ASM_JMP_LEN
+                
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 16]
+                call    uitds
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r12, rdx
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, newline
+                mov     rdx, 1
+                call    mem_move
+                add     r12, 1
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_ADDR
+                mov     rdx, ASM_ADDR_LEN
+                call    mem_move
+                add     r12, ASM_ADDR_LEN
+                
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 24]
+                call    uitds
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r12, rdx
+                
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_COLON
+                mov     rdx, ASM_COLON_LEN
+                call    mem_move
+                add     r12, ASM_COLON_LEN
+
+                jmp     .assembly_next
+
+            .output_end_var_proc:
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_PROC_END
+                mov     rdx, ASM_PROC_END_LEN
+                call    mem_move
+                add     r12, ASM_PROC_END_LEN
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_ADDR
+                mov     rdx, ASM_ADDR_LEN
+                call    mem_move
+                add     r12, ASM_ADDR_LEN
+
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 16]
+                call    uitds
+                lea     rdi, [r10 + r12]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r12, rdx
+                
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_COLON
+                mov     rdx, ASM_COLON_LEN
+                call    mem_move
+                add     r12, ASM_COLON_LEN
+
+                jmp     .assembly_next
+
+        .output_ident:
+            cmp     BYTE [r13 + rbx + 13], varIdentProc
+            jz      .output_proc_call
+            cmp     BYTE [r13 + rbx + 13], varIdentIgnore
+            jz      .assembly_next
+            ; TODO: use this to detect identifiers without decl
+            jmp     error_illegal  ; TODO: ERROR
+
+            .output_proc_call:
+                mov     r10, [r14]
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_PROC_CALL_L
+                mov     rdx, ASM_PROC_CALL_L_LEN
+                call    mem_move
+                add     r12, ASM_PROC_CALL_L_LEN
+                
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_CALL_START
+                mov     rdx, ASM_CALL_START_LEN
+                call    mem_move
+                add     r12, ASM_CALL_START_LEN
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_CALL
+                mov     rdx, ASM_CALL_LEN
+                call    mem_move
+                add     r12, ASM_CALL_LEN
+            
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_PROC_L
+                mov     rdx, ASM_PROC_L_LEN
+                call    mem_move
+                add     r12, ASM_PROC_L_LEN
+
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 16]
+                call    uitds
+                lea     rdi, [r10 + r12]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r12, rdx
+
+
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_CALL_END
+                mov     rdx, ASM_CALL_END_LEN
+                call    mem_move
+                add     r12, ASM_CALL_END_LEN
+
+                jmp     .assembly_next
+
+        .output_syscall0:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SYS0
+            mov     rdx, ASM_SYS0_LEN
+            call    mem_move
+            add     r12, ASM_SYS0_LEN
+            jmp     .assembly_next
+     
+        .output_syscall1:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SYS1
+            mov     rdx, ASM_SYS1_LEN
+            call    mem_move
+            add     r12, ASM_SYS1_LEN
+            jmp     .assembly_next
+
+
+        .output_syscall2:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SYS2
+            mov     rdx, ASM_SYS2_LEN
+            call    mem_move
+            add     r12, ASM_SYS2_LEN
+            jmp     .assembly_next
+
+
+        .output_syscall3:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SYS3
+            mov     rdx, ASM_SYS3_LEN
+            call    mem_move
+            add     r12, ASM_SYS3_LEN
+            jmp     .assembly_next
+
+
+        .output_syscall4:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SYS4
+            mov     rdx, ASM_SYS4_LEN
+            call    mem_move
+            add     r12, ASM_SYS4_LEN
+            jmp     .assembly_next
+
+
+        .output_syscall5:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SYS5
+            mov     rdx, ASM_SYS5_LEN
+            call    mem_move
+            add     r12, ASM_SYS5_LEN
+            jmp     .assembly_next
+ 
+        .output_syscall6:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SYS6
+            mov     rdx, ASM_SYS6_LEN
+            call    mem_move
+            add     r12, ASM_SYS6_LEN
+            jmp     .assembly_next
+
+        
+        .assembly_next:
+        ; - BUFFER ASSEMBLY GROW -
+        mov     rax, [r14 - 8] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     r12, rax 
+        jg      .grow_assembly_buffer
+        jmp     .not_grow_assembly_buffer
+        .grow_assembly_buffer:
+        mov     rdi, [r14 - 0]
+        mov     rsi, [r14 - 8]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [14 - 0], rax
+        mov     [14 - 8], rdx
+        .not_grow_assembly_buffer:
+        add     rbx, 48
+        jmp     .assembly
+    
+    .assembly_end:
+
+    mov     r10, [r14]
+    lea     rdi, [r10 + r12]
+    mov     rsi, ASM_ENDING
+    mov     rdx, ASM_ENDING_LEN
+    call    mem_move
+    add     r12, ASM_ENDING_LEN
+
+    lea     rdi, [r10 + r12]
+    mov     rsi, ASM_CONST_DATA_SECTION
+    mov     rdx, ASM_CONST_DATA_SECTION_LEN
+    call    mem_move
+    add     r12, ASM_CONST_DATA_SECTION_LEN
+
+    add     qword [r14 - 16], r12
+
+    pop     r15
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
+
+    mov     rsp, rbp
+    pop     rbp
+    ret
+
+
+; input:
+;   rdi: strings
+;   rsi: output
+assembly_add_string_constants:
+    push    rbp
+    mov     rbp, rsp
+
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
+
+    mov     r15, rdi
+    mov     r14, rsi
+
+    mov     r10, [r14]
+    mov     r12, [r14 - 16] ; offset output
+    
+    mov     r13, [r15] ; strings
+
+    xor     rbx, rbx
+    .assembly_strings:
+        cmp     rbx, QWORD [r15 - 16]
+        jz      .assembly_strings_end
+        
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_CONST_STR
+        mov     rdx, ASM_CONST_STR_LEN
+        call    mem_move
+        add     r12, ASM_CONST_STR_LEN
+    
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx]
+        call    uitds
+        lea     rdi, [r10 + r12]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r12, rdx
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_DB_WORD
+        mov     rdx, ASM_DB_WORD_LEN
+        call    mem_move
+        add     r12, ASM_DB_WORD_LEN
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, [r13 + rbx + 8]
+        mov     rdx, [r13 + rbx + 16]
+        call    mem_move
+        add     r12, [r13 + rbx + 16]
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_STR_END
+        mov     rdx, ASM_STR_END_LEN
+        call    mem_move
+        add     r12, ASM_STR_END_LEN
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_CONST_STR
+        mov     rdx, ASM_CONST_STR_LEN
+        call    mem_move
+        add     r12, ASM_CONST_STR_LEN
+
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx]
+        call    uitds
+        lea     rdi, [r10 + r12]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r12, rdx
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_CONST_STR_L
+        mov     rdx, ASM_CONST_STR_L_LEN
+        call    mem_move
+        add     r12, ASM_CONST_STR_L_LEN
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_EQ_LEN_WORD
+        mov     rdx, ASM_EQ_LEN_WORD_LEN
+        call    mem_move
+        add     r12, ASM_EQ_LEN_WORD_LEN
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_CONST_STR
+        mov     rdx, ASM_CONST_STR_LEN
+        call    mem_move
+        add     r12, ASM_CONST_STR_LEN
+
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx]
+        call    uitds
+        lea     rdi, [r10 + r12]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r12, rdx
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_STR_LEN_END
+        mov     rdx, ASM_STR_LEN_END_LEN
+        call    mem_move
+        add     r12, ASM_STR_LEN_END_LEN
+
+        ; - BUFFER ASSEMBLY GROW -
+        mov     rax, [r14 - 8] ; current max
+        mov     rcx, GROW_SIZE ; divisor
+        xor     rdx, rdx ; rest
+        div     rcx ; rax => 50% of current
+        cmp     r12, rax 
+        jg      .grow_assembly_buffer
+        jmp     .not_grow_assembly_buffer
+        .grow_assembly_buffer:
+        mov     rdi, [r14 - 0]
+        mov     rsi, [r14 - 8]
+        mov     rax, rsi
+        mov     rcx, GROW_SIZE
+        mul     rcx
+        mov     rdx, rax
+        call    remap_memory
+        mov     [14 - 0], rax
+        mov     [14 - 8], rdx
+        .not_grow_assembly_buffer:
+
+        add     rbx, 24
+        jmp     .assembly_strings
+
+    .assembly_strings_end:
+    mov     [r14 - 16], r12
+
+    pop     r15
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
+
+    mov     rsp, rbp
+    pop     rbp
+    ret
+
+
+; input:
+;   rdi: strings
+;   rsi: output
+assembly_add_mutable_constants:
+    push    rbp
+    mov     rbp, rsp
+
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
+
+    mov     r15, rdi
+    mov     r14, rsi
+
+    mov     r10, [r14]
+    mov     r12, [r14 - 16] ; offset output
+
+    xor     rbx, rbx
+
+    lea     rdi, [r12 + r10]
+    mov     rsi, ASM_MUTABLE_DATA_SECTION
+    mov     rdx, ASM_MUTABLE_DATA_SECTION_LEN
+    call    mem_move
+    add     r12, ASM_MUTABLE_DATA_SECTION_LEN
+
+    mov     [r14 - 16], r12
+
+    pop     r15
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
+
+    mov     rsp, rbp
+    pop     rbp
+    ret
+
+
+; input:
+;   rdi: strings
+;   rsi: output
+assembly_add_finish:
+    push    rbp
+    mov     rbp, rsp
+
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
+
+    mov     r14, rdi
+
+    mov     r10, [r14]
+    mov     r12, [r14 - 16]
+
+    lea     rdi, [r12 + r10]
+    mov     rsi, ASM_RETURN_STACK
+    mov     rdx, ASM_RETURN_STACK_LEN
+    call    mem_move
+    add     r12, ASM_RETURN_STACK_LEN
+
+    mov     [r14 - 16], r12
+
+    pop     r15
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
+
+    mov     rsp, rbp
+    pop     rbp
+    ret
+
+
 ; input
 ;   rdi: path   = ptr string (null term)
 ; modify
@@ -2405,6 +2603,7 @@ remap_memory:
 ;   rsi: ptr source
 ;   rdx: len to move 
 mem_move:
+    push    rcx
     xor     rcx, rcx
     .loop_mem_move:
         mov     al, BYTE [rsi + rcx] ; src byte
@@ -2412,6 +2611,8 @@ mem_move:
         inc     rcx
         cmp     rcx, rdx
         jnz .loop_mem_move
+
+    pop     rcx
     ret
 
 ; compare memory
