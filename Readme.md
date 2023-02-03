@@ -9,31 +9,32 @@ Concatenative Stack-Based Programming Language
 
 
 ## Features & TODO list
-** everything marked with prio 0 and 1 is "required" before selfhosting
+before selfhosting
 - [x] if else
 - [x] loops
 - [x] procs
+- [ ] anonymous procs
 - [x] constants (constants are special case of procs in this lang lmao)
 - [x] strings | constants work already | PRIO 0
-- [ ] string formatting (\n & number / string insert & unicode) | PRIO 1
-- [x] comments | PRIO 0
-- [ ] single error handling | PRIO 1 | multi error handling will be added in self host
+- [ ] string formatting (\n & number / string insert & unicode)
+- [x] comments (`//` single line `/*` and `*/` multiline)
+- [ ] single error handling | multi error handling will be added in self host
 - [x] command line arguments
 - [ ] command line arguments code | code in place, needs accessibility | PRIO 1
-- [ ] ptr | PRIO 0
-- [ ] mutable globals | PRIO 1
-- [ ] syntax highlighting VSC + VIM | PRIO 2
+- [ ] ptr
+- [ ] mutable globals
+- [x] syntax highlighting | (VSC)
 - [ ] types (int, string, ptr)
 - [ ] static typechecking
 - [ ] arrays
 - [x] syscalls
 - [ ] match (on types & values) 
-- [ ] modules | PRIO 1
+- [x] modules
 - [ ] simple datastructures ex. HashMap, Dynamic Array
-- [ ] self hosted | PRIO 2
+- [ ] self hosted
 - [ ] some optimizations
 - [ ] proc options e.g. "inline", "c"
-- [ ] memory management
+- [ ] memory management, e.g. destructors
 - [ ] c-interop
 - [ ] some OOP
 - [ ] Stack Effects & Pure Functions

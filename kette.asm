@@ -72,6 +72,7 @@ varEndProc  = 3
 varIdentIgnore  = 1
 varIdentProc    = 2
 
+varStringIgnore = 1
 
 segment readable executable
 
@@ -242,6 +243,20 @@ entry $
             mov     [rdi + rcx + 0], r12
             mov     [rdi + rcx + 8], rsi
             mov     [rdi + rcx + 16], rdx
+
+            mov     rax, [r13 + rbx + 48 + 16] ; string id
+            mov     rdi, [r15 - 24]
+            xor     r10, r10
+            .find_string:
+                cmp     r10, [r15 - 40]
+                jz      .find_string_end
+                cmp     [rdi + r10], rax
+                jnz     .find_string_next
+                mov     byte [rdi + r10 + 24], varStringIgnore
+                .find_string_next:
+                add     r10, 32
+                jmp     .find_string
+            .find_string_end:
 
             add     qword [r15 - 88], 24
             mov     byte [r13 + rbx + 48], tkNoOp
@@ -534,7 +549,7 @@ tokenize_file:
             mov     QWORD [rcx + rdx + 8], r12 ; ptr string
             mov     QWORD [rcx + rdx + 16], r13 ; len string
 
-            add     QWORD [r15 - 40], 24
+            add     QWORD [r15 - 40], 32
             inc     QWORD [r15 - 128]
 
             jmp     .tokenize_next
@@ -1320,7 +1335,7 @@ cross_reference_tokens:
                 mov     rcx, [r12 + rbx + 24]
                 cmp     rdx, rcx
                 jnz     .find_call_id_next ; unequal length
-                
+
                 mov     rdi, [r10 + r13 +  8]
                 mov     rsi, [r12 + rbx + 16]
                 mov     rdx, [r10 + r13 + 16]
@@ -2331,8 +2346,10 @@ assembly_add_string_constants:
 
     xor     rbx, rbx
     .assembly_strings:
-        cmp     rbx, QWORD [r15 - 16]
+        cmp     rbx, qword [r15 - 16]
         jz      .assembly_strings_end
+        cmp     byte [r13 + rbx + 24], varStringIgnore
+        jz      .assembly_strings_next
         
         lea     rdi, [r10 + r12]
         mov     rsi, ASM_CONST_STR
@@ -2418,6 +2435,7 @@ assembly_add_string_constants:
         call    mem_move
         add     r12, ASM_STR_LEN_END_LEN
 
+        .assembly_strings_next:
         ; - BUFFER ASSEMBLY GROW -
         mov     rax, [r14 - 8] ; current max
         mov     rcx, GROW_SIZE ; divisor
@@ -2438,7 +2456,7 @@ assembly_add_string_constants:
         mov     [14 - 8], rdx
         .not_grow_assembly_buffer:
 
-        add     rbx, 24
+        add     rbx, 32
         jmp     .assembly_strings
 
     .assembly_strings_end:
