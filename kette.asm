@@ -1316,6 +1316,11 @@ cross_reference_tokens:
                 cmp     r13, [r15 - 64]
                 jz      .find_call_id_end
                 
+                mov     rdx, [r10 + r13 + 16]
+                mov     rcx, [r12 + rbx + 24]
+                cmp     rdx, rcx
+                jnz     .find_call_id_next ; unequal length
+                
                 mov     rdi, [r10 + r13 +  8]
                 mov     rsi, [r12 + rbx + 16]
                 mov     rdx, [r10 + r13 + 16]
@@ -2646,7 +2651,6 @@ hexdump_file:
 
     ; mov     r15, rdi
 
-    ; mov     byte [rsp + r13], 0
     mov     r14, rsp
     sub     rsp, 1
     mov     byte [rsp], 0

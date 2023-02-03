@@ -1,2 +1,5 @@
+use "examples/use.ktt"
 
 : print-5 /*( -- )*/ in 5 . ;
+
+: print-1-5 /*( -- )*/ in print-1 print-5 ;
