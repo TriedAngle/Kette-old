@@ -163,68 +163,33 @@ entry $
     push    rax ; counter pass   | r15 - 152
 
     ; includes:
-    ;   data: [file.ktt, file.ktt, ...]
-    ;   include array:
-    ;        0 : 8b [id]
-    ;        8 : 8b [data idx]
-    ;       16 : 8b [len]
-    ;       24 : 8b [token] (useful for debugging)
-    mov     rdi, PAGE2_BYTES
-    call    map_memory
-    lea     r12, [rsp - 8]
-    push    rdi
-    push    rax
+    ;    0 : 8b [id]
+    ;    8 : 8b [ptr]
+    ;   16 : 8b [len]
 
-    ; inc
-    ; put in first file
     mov     rdi, [arg_ptr]
     mov     rdi, [rdi + 8]
     call    strlen ; rax = len, rdi = ptr
-    mov     r10, rax
-    mov     rsi, rdi
-    lea     rdi, [r12]
-    mov     rdx, r10
-    call    mem_move
 
-    lea     rdi, [r12]
-    mov     rsi, r10 
-    call    append_ktt_if_necessary
+    mov     r12, [r15 - 72]
+    mov     qword [r12 +  0], 0
+    mov     [r12 +  8], rdi
+    mov     [r12 + 16], rax
+    mov     qword [r15 - 88], 24
+    mov     qword [r15 - 96], 0
 
-    lea     rdi, [r12]
-    mov     rsi, rsi
-    call    print_string
-
-    mov     rdi, 0
-    mov     rax, SYS_EXIT
-    syscall
-
-    mov     rbx, [r15 - 72]
-    mov     qword [rbx + 0], 0
-    mov     qword [rbx +  8], 0
-    mov     [rbx + 16], rdx
-
-    mov     rax, [rbx + 8]
-    mov     rsi, [rbx + 16]
-
-  
-    mov     rcx, [r12 - 8]
-    mov     rdi, [rcx + rax]
-
-    call    print_string
-
-    mov     rdi, 0
-    mov     rax, SYS_EXIT
-    syscall
-
-    mov     qword [r15 - 88], 1
-
-
+    mov     r12, 0
     xor     r14, r14 ; offset of tokens per file
     ; -- PASS 0 : Tokenization --
     .tokenize_all:
+        ; no more files => end
+        mov     rax, [r15 - 96] ; current
+        cmp     rax, [r15 - 88] ; current == max + 1 => end
+        jz      .tokenize_all_end
+
         mov     rdi, r15
         call    tokenize_file
-        
+
         mov     rbx, r14
         mov     r13, [r15]
         .check_use:
@@ -233,20 +198,63 @@ entry $
 
             cmp     byte [r13 + rbx], tkUse
             jnz     .check_use_next
-            ; call    print_a
+            cmp     byte [r13 + rbx + 48], tkPushStr
+            jnz     error_missing_path_after_use ; TODO: ERROR
+            
+            ; include memory (offsetted)
+            mov     rdi, [r15 - 72]
+            mov     rcx, [r15 - 88]
+            
+            mov     rsi, [r13 + rbx + 48 + 24]
+            lea     rsi, [rsi + 1]
+            mov     rdx, [r13 + rbx + 48 + 32]
+            sub     rdx, 2
+
+            xor     r10, r10
+            .check_if_included:
+                cmp     r10, [r15 - 88]
+                jz      .check_if_included_end
+               
+                push    rdi
+                push    rcx
+                push    rsi
+                push    rdx
+                mov     rsi, rsi
+                mov     rdx, rdx
+                mov     rdi, [rdi + r10 + 8]
+                call    mem_cmp
+                pop     rdx
+                pop     rsi
+                pop     rcx
+                pop     rdi
+                cmp     rax, 0
+                jz      .check_if_included_next
+                ; file is already included
+                mov     byte [r13 + rbx + 48], tkNoOp
+                jmp     .check_use_next
+
+                .check_if_included_next:
+                add     r10, 24
+                jmp     .check_if_included
+            .check_if_included_end:
+
+            inc     r12
+            mov     [rdi + rcx + 0], r12
+            mov     [rdi + rcx + 8], rsi
+            mov     [rdi + rcx + 16], rdx
+
+            add     qword [r15 - 88], 24
+            mov     byte [r13 + rbx + 48], tkNoOp
+
             .check_use_next:
             add     rbx, 48
+            jmp     .check_use
         .check_use_end:
-        
-        ; cmp     rax, 0
-        jz      .tokenize_all_end
-        ; jmp     .tokenize_all
+
+        mov     r14, rbx
+        add     qword [r15 - 96], 24
+        jmp     .tokenize_all
     .tokenize_all_end:
-    ; unmap token memory
-    
-    pop     rdi
-    pop     rsi
-    call    unmap_memory
 
     ; TODO: investigate why rdi doens't work
     .hexdump_pass_0:
@@ -365,8 +373,9 @@ tokenize_file:
     mov     rdi, [r15 - 72] ; include ptr
     mov     rdx, [r15 - 96] ; include current
     lea     rdi, [rdi + rdx]
-    mov     r13, [rdi + 8] ; len
-    mov     r12, [rdi + 16] ; ptr
+    mov     r12, [rdi + 8] ; ptr
+    mov     r13, [rdi + 16] ; len
+
     ; - null terminated ... -
     mov     rbx, r13
     inc     rbx
@@ -375,15 +384,14 @@ tokenize_file:
     mov     rsi, r12
     mov     rdx, rbx
     call    mem_move
-    
+    mov     byte [rsp + r13], 0
     mov     rdi, rsp
     call    open_file
+    push    r8
     add     rsp, rbx
-    
     mov     r14, rsp
     push    rax ; file string | - 8
     push    rdx ; file len | - 16
-
 
     mov     rax, 1
     push    rax   ; line counter | - 24
@@ -517,9 +525,12 @@ tokenize_file:
             mov     rdx, [r15 - 40] ; string mem offset
             mov     r10, [r15 - 128] ; string counter
             
-            mov     QWORD [rdi + rbx + 16], r10 ; string id
+            ; some data duplication but makes life easier
+            mov     QWORD [rdi + rbx + 16], r10 ; id string
+            mov     QWORD [rdi + rbx + 24], r12 ; ptr string
+            mov     QWORD [rdi + rbx + 32], r13 ; len string
 
-            mov     QWORD [rcx + rdx], r10 ; string id
+            mov     QWORD [rcx + rdx], r10 ; id string
             mov     QWORD [rcx + rdx + 8], r12 ; ptr string
             mov     QWORD [rcx + rdx + 16], r13 ; len string
 
@@ -892,13 +903,16 @@ tokenize_file:
     .tokenize_end:
     add     [r15 - 16], rbx
 
-    ; -- pop & unmap file --
+    ; -- pop & unmap file & close file --
     pop     rax
     pop     rax
     pop     rax
     pop     rdi
     pop     rsi
     call    unmap_memory
+    pop     rdi
+    mov     rax, SYS_CLOSE
+    syscall
 
     pop     r15
     pop     r14
@@ -2520,22 +2534,25 @@ assembly_add_finish:
 ; output
 ;   rax: file   = ptr string (allocated heap)
 ;   rdx: len    = u64
+;    r8:  fd    = u64
 open_file:
     push    rbp
     mov     rbp, rsp
     push    rbx
+    push    r12
+
     mov     rsi, O_RDONLY
     mov     rax, SYS_OPEN
     syscall ; rax = file descriptor (fd)
     
-    mov     r8 , rax
-
-    cmp     rax, -1
+    mov     r12 , rax
+    
+    cmp     r12, -1
     je      error_file_not_found
 
     sub     rsp, 144 ; place to allocate fstat
     
-    mov     rdi, r8
+    mov     rdi, r12
     mov     rsi, rsp ; buffer start
     mov     rax, SYS_FSTAT
     syscall ; stack allocated fstat struct (144 bytes)
@@ -2549,11 +2566,13 @@ open_file:
     mov     rdx, PROT_READ
     mov     r10, MAP_PRIVATE 
     xor     r9 , r9
+    mov     r8, r12
     mov     rax, SYS_MMAP
     syscall ; rax = ptr file buffer
 
     mov     rdx, rsi
-
+    mov     r8, r12
+    pop     r12
     pop     rbx
     mov     rsp, rbp
     pop     rbp
@@ -2627,7 +2646,10 @@ hexdump_file:
 
     ; mov     r15, rdi
 
-   
+    ; mov     byte [rsp + r13], 0
+    mov     r14, rsp
+    sub     rsp, 1
+    mov     byte [rsp], 0
     sub     rsp, hex_file_len
     mov     rdi, rsp
     mov     rsi, hex_file
@@ -2672,9 +2694,7 @@ hexdump_file:
     mov     rax, SYS_CLOSE
     syscall
 
-    add     rsp, r12
-    add     rsp, 1
-    add     rsp, hex_file_len
+    mov     rsp, r14
 
     
     ; pop     r15
@@ -3100,6 +3120,17 @@ error_no_output_given:
     mov     rax, SYS_EXIT
     syscall
 
+error_missing_path_after_use:
+    mov     rdi, STDOUT
+    mov     rsi, err10
+    mov     rdx, err10len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
 error_illegal:
     mov     rdi, STDOUT
     mov     rsi, errminus1
@@ -3148,6 +3179,9 @@ err8len     =   $ - err8
 
 err9        db  "No output_given"
 err9len     =   $ - err9
+
+err10       db  "Missing path after use"
+err10len    =   $ - err10
 
 errminus1   db  "illegal error LOL, this is probably a parser error"
 errminus1len=   $ - errminus1

@@ -1,6 +1,3 @@
-use "std/io"
-use "hello"
-
-: print-5 /*( x y -> z )*/ in 5 . ;
+use "examples/hello.ktt"
 
 print-5
