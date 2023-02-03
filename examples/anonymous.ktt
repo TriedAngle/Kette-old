@@ -1,0 +1,3 @@
+: when /*( bool fp -- )*/ in swap if then call end ;
+
+1 [ 69 . ] when

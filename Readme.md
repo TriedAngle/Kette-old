@@ -13,7 +13,7 @@ before selfhosting
 - [x] if else
 - [x] loops
 - [x] procs
-- [ ] anonymous procs
+- [x] anonymous procs
 - [x] constants (constants are special case of procs in this lang lmao)
 - [x] strings | constants work already | PRIO 0
 - [ ] string formatting (\n & number / string insert & unicode)

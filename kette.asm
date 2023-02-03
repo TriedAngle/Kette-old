@@ -62,6 +62,10 @@ tkBitOr     = 43
 
 tkUse       = 44
 
+tkAnOpen    = 45
+tkAnClose   = 46
+tkCall      = 47
+
 tkExit      = 255
 
 
@@ -490,6 +494,16 @@ tokenize_file:
         cmovz   rcx, rax
         jz      .finalize_keyword_simple
 
+        mov     rax, tkAnOpen
+        cmp     BYTE [r12], "["
+        cmovz   rcx, rax
+        jz      .finalize_keyword_simple
+
+        mov     rax, tkAnClose
+        cmp     BYTE [r12], "]"
+        cmovz   rcx, rax
+        jz      .finalize_keyword_simple
+
         .check_symbol_len2:
         cmp     r14, 2
         jnz     .not_symbol_len3
@@ -723,6 +737,14 @@ tokenize_file:
         call    mem_cmp
         cmp     rax, 1
         mov     rcx, tkUse
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_CALL]
+        mov     rdx, KEY_CALL_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkCall
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -1143,6 +1165,10 @@ cross_reference_tokens:
         jz      .cross_reference_in
         cmp     byte [r12 + rbx], tkEnd
         jz      .cross_reference_end
+        cmp     byte [r12 + rbx], tkAnOpen
+        jz      .cross_reference_anonymous_open
+        cmp     byte [r12 + rbx], tkAnClose
+        jz      .cross_reference_anonymous_close
 
         jmp     .cross_reference_next
 
@@ -1222,7 +1248,7 @@ cross_reference_tokens:
             jz      .cross_reference_end_else
             cmp     byte [r12 + rax], tkIn
             jz      .cross_reference_end_proc
-        
+            
             jmp     error_illegal ; TODO: ERROR
         
             .cross_reference_end_then:
@@ -1279,6 +1305,29 @@ cross_reference_tokens:
                 inc     r13
                 jmp     .cross_reference_next
 
+        .cross_reference_anonymous_open:
+            push    rbx
+            inc     r14
+            jmp     .cross_reference_next
+        
+        .cross_reference_anonymous_close:
+            cmp     r14, 0
+            jz      error_missing_anonymous_close ; TODO: ERROR
+            pop     rax
+            cmp     byte [r12 + rax], tkAnOpen
+            jnz     error_missing_anonymous_close ; TODO: ERROR
+            
+            push    r13
+            mov     r13, [r15 - 136]
+            mov     [r12 + rax + 16], rbx ; [ -> ]
+            mov     [r12 + rbx + 16], rax ; ] -> [
+            mov     [r12 + rax + 24], r13 ; push / jmp label
+            mov     [r12 + rbx + 24], r13 ; push / jmp label
+            inc     qword [r15 - 136]
+            pop     r13
+            dec     r14
+            jmp     .cross_reference_next
+        
         .cross_reference_next:
 
         ; - BUFFER PROC GROW -
@@ -1501,6 +1550,15 @@ create_assembly:
 
         cmp     BYTE [r13 + rbx], tkIdent
         jz      .output_ident
+
+        cmp     BYTE [r13 + rbx], tkAnOpen
+        jz      .output_anonymous_open
+
+        cmp     BYTE [r13 + rbx], tkAnClose
+        jz      .output_anonymous_close
+
+        cmp     BYTE [r13 + rbx], tkCall
+        jz      .output_call
 
         cmp     BYTE [r13 + rbx], tkSys0
         jz      .output_syscall0
@@ -2033,7 +2091,8 @@ create_assembly:
             jz      .output_end_var_proc
 
             jmp     error_illegal ; TODO: ERROR
-            .output_end_var_if: 
+            .output_end_var_if:
+                mov     r10, [r14]
                 lea     rdi, [r10 + r12]
                 mov     rsi, ASM_END_L
                 mov     rdx, ASM_END_L_LEN
@@ -2065,6 +2124,7 @@ create_assembly:
                 jmp     .assembly_next
 
             .output_end_var_do:
+                mov     r10, [r14]
                 lea     rdi, [r10 + r12]
                 mov     rsi, ASM_END_L
                 mov     rdx, ASM_END_L_LEN
@@ -2120,6 +2180,7 @@ create_assembly:
                 jmp     .assembly_next
 
             .output_end_var_proc:
+                mov     r10, [r14]
                 lea     rdi, [r10 + r12]
                 mov     rsi, ASM_PROC_END
                 mov     rdx, ASM_PROC_END_LEN
@@ -2203,6 +2264,123 @@ create_assembly:
                 add     r12, ASM_CALL_END_LEN
 
                 jmp     .assembly_next
+
+        .output_anonymous_open:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ANON1
+            mov     rdx, ASM_ANON1_LEN
+            call    mem_move
+            add     r12, ASM_ANON1_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24] ; addr end
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ANON2
+            mov     rdx, ASM_ANON2_LEN
+            call    mem_move
+            add     r12, ASM_ANON2_LEN
+
+            ; SKIPPING
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_JMP
+            mov     rdx, ASM_JMP_LEN
+            call    mem_move
+            add     r12, ASM_JMP_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24] ; addr end
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     BYTE [r10 + r12], 10
+            add     r12, 1
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PROC_L
+            mov     rdx, ASM_PROC_L_LEN
+            call    mem_move
+            add     r12, ASM_PROC_L_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24] ; addr end
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+
+            ; PREPARATION
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_PROC_PREP
+            mov     rdx, ASM_PROC_PREP_LEN
+            call    mem_move
+            add     r12, ASM_PROC_PREP_LEN
+
+            jmp     .assembly_next
+
+        .output_anonymous_close:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ANON_END
+            mov     rdx, ASM_ANON_END_LEN
+            call    mem_move
+            add     r12, ASM_ANON_END_LEN
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ADDR
+            mov     rdx, ASM_ADDR_LEN
+            call    mem_move
+            add     r12, ASM_ADDR_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+            
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+
+            jmp     .assembly_next
+        
+        .output_call:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ANON_CALL
+            mov     rdx, ASM_ANON_CALL_LEN
+            call    mem_move
+            add     r12, ASM_ANON_CALL_LEN
+
+            jmp     .assembly_next
 
         .output_syscall0:
             mov     r10, [r14]
@@ -3153,6 +3331,17 @@ error_missing_path_after_use:
     mov     rax, SYS_EXIT
     syscall
 
+error_missing_anonymous_close:
+    mov     rdi, STDOUT
+    mov     rsi, err11
+    mov     rdx, err11len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
 error_illegal:
     mov     rdi, STDOUT
     mov     rsi, errminus1
@@ -3204,6 +3393,9 @@ err9len     =   $ - err9
 
 err10       db  "Missing path after use"
 err10len    =   $ - err10
+
+err11       db  "Expected closing ] to close anonymous function"
+err11len    =   $ - err11
 
 errminus1   db  "illegal error LOL, this is probably a parser error"
 errminus1len=   $ - errminus1
@@ -3274,6 +3466,9 @@ KEY_END_LEN     =   $ - KEY_END
 
 KEY_USE         db  "use"
 KEY_USE_LEN     =   $ - KEY_USE
+
+KEY_CALL        db  "call"
+KEY_CALL_LEN    =   $ - KEY_CALL
 
 KEY_SYS0        db  "syscall0"
 KEY_SYS0_LEN    =   $ - KEY_SYS0
@@ -3404,8 +3599,19 @@ ASM_COLON_LEN=   $ - ASM_COLON
 ASM_JMP     db  "jmp _Addr"
 ASM_JMP_LEN =   $ - ASM_JMP
 
+ASM_ANON1           db  "; -- ANONYMOUS PROC DECL --", 10, "; - push label -" , 10, "push _Proc"
+ASM_ANON1_LEN       =   $ - ASM_ANON1
 
-ASM_PROC_DEC        db  "; -- PROC DECLERATION --", 10, "; - skip -", 10
+ASM_ANON2           db  10, "; - skip & label -", 10
+ASM_ANON2_LEN       =   $ - ASM_ANON2   
+
+ASM_ANON_END        db  "; -- ANONYMOUS PROC END --", 10, "; - return - ", 10, "mov rax, rsp", 10, "mov rsp, [RETURN_STACK_PTR]", 10, "ret", 10, "; - skip -", 10
+ASM_ANON_END_LEN    =   $ - ASM_ANON_END
+
+ASM_ANON_CALL       db  "; -- CALL ANONYMOUS PROC -- ", 10, "pop rcx", 10, "mov rax, rsp", 10, "mov rsp, [RETURN_STACK_PTR]", 10, "call rcx", 10, "mov [RETURN_STACK_PTR], rsp", 10, "mov rsp, rax", 10
+ASM_ANON_CALL_LEN   =   $ - ASM_ANON_CALL
+
+ASM_PROC_DEC        db  "; -- PROC DECLERATION --", 10, "; - skip & label -", 10
 ASM_PROC_DEC_LEN    =   $ - ASM_PROC_DEC
 
 ASM_PROC_PREP       db  "; - prepare -", 10, "mov [RETURN_STACK_PTR], rsp", 10, "mov rsp, rax", 10, "; - body -", 10
