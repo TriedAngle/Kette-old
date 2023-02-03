@@ -162,22 +162,92 @@ entry $
     mov     rax, 0
     push    rax ; counter pass   | r15 - 152
 
+    ; includes:
+    ;   data: [file.ktt, file.ktt, ...]
+    ;   include array:
+    ;        0 : 8b [id]
+    ;        8 : 8b [data idx]
+    ;       16 : 8b [len]
+    ;       24 : 8b [token] (useful for debugging)
+    mov     rdi, PAGE2_BYTES
+    call    map_memory
+    lea     r12, [rsp - 8]
+    push    rdi
+    push    rax
+
+    ; inc
     ; put in first file
     mov     rdi, [arg_ptr]
     mov     rdi, [rdi + 8]
-    call    strlen
-    mov     rbx, [r15 - 72]
-    mov     [rbx + 8], rax
-    mov     [rbx + 16], rdi
+    call    strlen ; rax = len, rdi = ptr
+    mov     r10, rax
+    mov     rsi, rdi
+    lea     rdi, [r12]
+    mov     rdx, r10
+    call    mem_move
 
+    lea     rdi, [r12]
+    mov     rsi, r10 
+    call    append_ktt_if_necessary
+
+    lea     rdi, [r12]
+    mov     rsi, rsi
+    call    print_string
+
+    mov     rdi, 0
+    mov     rax, SYS_EXIT
+    syscall
+
+    mov     rbx, [r15 - 72]
+    mov     qword [rbx + 0], 0
+    mov     qword [rbx +  8], 0
+    mov     [rbx + 16], rdx
+
+    mov     rax, [rbx + 8]
+    mov     rsi, [rbx + 16]
+
+  
+    mov     rcx, [r12 - 8]
+    mov     rdi, [rcx + rax]
+
+    call    print_string
+
+    mov     rdi, 0
+    mov     rax, SYS_EXIT
+    syscall
+
+    mov     qword [r15 - 88], 1
+
+
+    xor     r14, r14 ; offset of tokens per file
     ; -- PASS 0 : Tokenization --
     .tokenize_all:
         mov     rdi, r15
         call    tokenize_file
-        cmp     rax, 0
+        
+        mov     rbx, r14
+        mov     r13, [r15]
+        .check_use:
+            cmp     rbx, [r15 - 16]
+            jz      .check_use_end
+
+            cmp     byte [r13 + rbx], tkUse
+            jnz     .check_use_next
+            ; call    print_a
+            .check_use_next:
+            add     rbx, 48
+        .check_use_end:
+        
+        ; cmp     rax, 0
         jz      .tokenize_all_end
-        jmp     .tokenize_all
+        ; jmp     .tokenize_all
     .tokenize_all_end:
+    ; unmap token memory
+    
+    pop     rdi
+    pop     rsi
+    call    unmap_memory
+
     ; TODO: investigate why rdi doens't work
     .hexdump_pass_0:
     cmp     [hexdump], 0
@@ -260,6 +330,7 @@ entry $
     mov     rsi, [r15 - 112]
     call    unmap_memory
 
+    ; unmap output assembly
     mov     rdi, [r15 -  160]
     mov     rsi, [r15 -  168]
     call    unmap_memory
@@ -621,6 +692,14 @@ tokenize_file:
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
+        lea     rsi, [KEY_USE]
+        mov     rdx, KEY_USE_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkUse
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
         lea     rsi, [KEY_SYS0]
         mov     rdx, KEY_SYS0_LEN
         call    mem_cmp
@@ -821,7 +900,6 @@ tokenize_file:
     pop     rsi
     call    unmap_memory
 
-    mov     rax, 0
     pop     r15
     pop     r14
     pop     r13
@@ -2482,6 +2560,60 @@ open_file:
     ret
 
 
+; checks if import is from std
+; input
+;   rdi: ptr
+;   rsi: len (not really required but useful for safety)
+; output
+;   rax: 0 -> false, 1 -> true
+is_std?:
+    cmp     rsi, STD_START_LEN
+    jle     .is_not_std
+    mov     rsi, STD_START
+    mov     rdx, STD_START_LEN
+    call    mem_cmp ; result in rax already
+    ret
+
+    .is_not_std:
+    mov     rax, 0
+    ret
+
+; takes a string and simply appends ktt at the end of it
+; if it does not end with ktt
+; input
+;   rdi: ptr
+;   rsi: len
+; output
+;   rsi: newlen
+append_ktt_if_necessary:
+    cmp     rsi, KTT_ENDING_LEN ; shorter => 100% no ktt ending
+    mov     r9, rsi
+    mov     r10, rsi
+    jle     .append_ktt
+
+    ; index of potential .ktt
+    sub     r9, KTT_ENDING_LEN
+    mov     r11, rdi ; store
+    lea     rdi, [rdi + r9]
+
+    mov     rsi, KTT_ENDING
+    mov     rdx, KTT_ENDING_LEN
+    call    mem_cmp
+    cmp     rax, 1
+    jz      .append_ktt_end ; has .ktt already
+
+
+    .append_ktt:
+    mov     rdi, r11
+    lea     rdi, [rdi + r10]
+    mov     rsi, KTT_ENDING
+    mov     rdx, KTT_ENDING_LEN
+    call    mem_move
+
+    add     r10, KTT_ENDING_LEN
+    .append_ktt_end:
+    mov     rsi, r10
+    ret
 ; input
 ;   rdi: hexfile index
 hexdump_file:
@@ -3019,6 +3151,14 @@ err9len     =   $ - err9
 
 errminus1   db  "illegal error LOL, this is probably a parser error"
 errminus1len=   $ - errminus1
+
+; util
+KTT_ENDING      db  ".ktt"
+KTT_ENDING_LEN  =   $ - KTT_ENDING
+
+STD_START       db  "std/"
+STD_START_LEN   =   $ - STD_START
+
 ; LANGUAGE KEYWORDS
 KEY_CMMT_START  db  "/", 42
 KEY_CMMT_END    db  42, "/"
@@ -3061,9 +3201,6 @@ KEY_THEN_LEN    =   $ - KEY_THEN
 KEY_ELSE        db  "else"
 KEY_ELSE_LEN    =   $ - KEY_ELSE
 
-KEY_END         db  "end"
-KEY_END_LEN     =   $ - KEY_END
-
 KEY_WHILE       db  "while"
 KEY_WHILE_LEN   =   $ - KEY_WHILE
 
@@ -3075,6 +3212,12 @@ KEY_PROC_LEN    =   $ - KEY_PROC
 
 KEY_IN          db  "in"
 KEY_IN_LEN      =   $ - KEY_IN
+
+KEY_END         db  "end"
+KEY_END_LEN     =   $ - KEY_END
+
+KEY_USE         db  "use"
+KEY_USE_LEN     =   $ - KEY_USE
 
 KEY_SYS0        db  "syscall0"
 KEY_SYS0_LEN    =   $ - KEY_SYS0
@@ -3096,6 +3239,7 @@ KEY_SYS5_LEN    =   $ - KEY_SYS5
 
 KEY_SYS6        db  "syscall6"
 KEY_SYS6_LEN    =   $ - KEY_SYS6
+
 
 ; ASSEMBLY OUTPUT
 ASM_PUSH        db  "; -- PUSH --", 10, "push " ; insert number here

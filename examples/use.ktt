@@ -1,4 +1,6 @@
 use "std/io"
 use "hello"
 
-: hello ( x y -> z ) x + 5 ;
+: print-5 /*( x y -> z )*/ in 5 . ;
+
+print-5
