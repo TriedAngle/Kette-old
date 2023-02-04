@@ -66,6 +66,9 @@ tkAnOpen    = 45
 tkAnClose   = 46
 tkCall      = 47
 
+tkStackPtr  = 48
+tkDerefPtr  = 49
+
 tkExit      = 255
 
 
@@ -745,6 +748,22 @@ tokenize_file:
         call    mem_cmp
         cmp     rax, 1
         mov     rcx, tkCall
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_STACKPTR]
+        mov     rdx, KEY_STACKPTR_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkStackPtr
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_DEREFPTR]
+        mov     rdx, KEY_DEREFPTR_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkDerefPtr
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -1560,6 +1579,12 @@ create_assembly:
         cmp     BYTE [r13 + rbx], tkCall
         jz      .output_call
 
+        cmp     BYTE [r13 + rbx], tkStackPtr
+        jz      .output_stackptr
+
+        cmp     BYTE [r13 + rbx], tkDerefPtr
+        jz      .output_derefptr
+
         cmp     BYTE [r13 + rbx], tkSys0
         jz      .output_syscall0
         
@@ -2272,16 +2297,6 @@ create_assembly:
             mov     rdx, ASM_ANON1_LEN
             call    mem_move
             add     r12, ASM_ANON1_LEN
-            
-            lea     rsi, [rsp]
-            sub     rsp, 20
-            mov     rdi, [r13 + rbx + 24] ; addr end
-            call    uitds
-            lea     rdi, [r10 + r12]
-            mov     rsi, rax
-            call    mem_move
-            add     rsp, 20
-            add     r12, rdx
 
             lea     rdi, [r10 + r12]
             mov     rsi, ASM_ANON2
@@ -2370,6 +2385,24 @@ create_assembly:
             call    mem_move
             add     r12, ASM_COLON_LEN
 
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ANON_PUSH
+            mov     rdx, ASM_ANON_PUSH_LEN
+            call    mem_move
+            add     r12, ASM_ANON_PUSH_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     BYTE [r10 + r12], 10
+            add     r12, 1
             jmp     .assembly_next
         
         .output_call:
@@ -2379,7 +2412,24 @@ create_assembly:
             mov     rdx, ASM_ANON_CALL_LEN
             call    mem_move
             add     r12, ASM_ANON_CALL_LEN
+            jmp     .assembly_next
 
+        .output_stackptr:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_STACKPTR
+            mov     rdx, ASM_STACKPTR_LEN
+            call    mem_move
+            add     r12, ASM_STACKPTR_LEN
+            jmp     .assembly_next
+
+        .output_derefptr:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_DEREFPTR
+            mov     rdx, ASM_DEREFPTR_LEN
+            call    mem_move
+            add     r12, ASM_DEREFPTR_LEN
             jmp     .assembly_next
 
         .output_syscall0:
@@ -3470,6 +3520,12 @@ KEY_USE_LEN     =   $ - KEY_USE
 KEY_CALL        db  "call"
 KEY_CALL_LEN    =   $ - KEY_CALL
 
+KEY_STACKPTR    db  "stackptr"
+KEY_STACKPTR_LEN=   $ - KEY_STACKPTR
+
+KEY_DEREFPTR    db  "derefptr"
+KEY_DEREFPTR_LEN=   $ - KEY_DEREFPTR
+
 KEY_SYS0        db  "syscall0"
 KEY_SYS0_LEN    =   $ - KEY_SYS0
 
@@ -3605,14 +3661,17 @@ ASM_SKIP_JMP_LEN    =   $ - ASM_SKIP_JMP
 ASM_SKIP_ADDR       db  "_SkipAddr"
 ASM_SKIP_ADDR_LEN   =   $ - ASM_SKIP_ADDR
 
-ASM_ANON1           db  "; -- ANONYMOUS PROC DECL --", 10, "; - push label -" , 10, "push _Proc"
+ASM_ANON1           db  "; -- ANONYMOUS PROC DECL --", 10
 ASM_ANON1_LEN       =   $ - ASM_ANON1
 
-ASM_ANON2           db  10, "; - skip & label -", 10
+ASM_ANON2           db  "; - skip & label -", 10
 ASM_ANON2_LEN       =   $ - ASM_ANON2   
 
 ASM_ANON_END        db  "; -- ANONYMOUS PROC END --", 10, "; - return - ", 10, "mov rax, rsp", 10, "mov rsp, [RETURN_STACK_PTR]", 10, "ret", 10, "; - skip -", 10
 ASM_ANON_END_LEN    =   $ - ASM_ANON_END
+
+ASM_ANON_PUSH       db  "; - push anonymous label - ", 10, "push _Proc"
+ASM_ANON_PUSH_LEN   =   $ - ASM_ANON_PUSH
 
 ASM_ANON_CALL       db  "; -- CALL ANONYMOUS PROC -- ", 10, "pop rcx", 10, "mov rax, rsp", 10, "mov rsp, [RETURN_STACK_PTR]", 10, "call rcx", 10, "mov [RETURN_STACK_PTR], rsp", 10, "mov rsp, rax", 10
 ASM_ANON_CALL_LEN   =   $ - ASM_ANON_CALL
@@ -3640,6 +3699,12 @@ ASM_CALL_END_LEN    =   $ - ASM_CALL_END
 
 ASM_CALL            db  "call "
 ASM_CALL_LEN        =   $ -  ASM_CALL
+
+ASM_STACKPTR        db  "; -- STACKPTR --", 10, "pop rax", 10, "lea rax, [rsp + rax]", 10, "push rax", 10
+ASM_STACKPTR_LEN    =   $ - ASM_STACKPTR
+
+ASM_DEREFPTR        db  "; -- DEREFPTR --", 10, "pop rax", 10, "mov rax, [rax]", 10, "push rax", 10
+ASM_DEREFPTR_LEN    =   $ - ASM_DEREFPTR
 
 ; SYSCALLS (WORKS GOOD ENOUGH FOR NOW)
 ASM_SYS0        db  "; -- SYSCALL0 --", 10, "pop rax", 10, "syscall", 10, "push rax", 10

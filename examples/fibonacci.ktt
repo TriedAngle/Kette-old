@@ -1,7 +1,7 @@
 : fib in
-    if dup 1 > then
-        1 - dup 1 - fib swap fib +
-    end 
+  if dup 1 > then
+    1 - dup 1 - fib swap fib +
+  end 
 ;
 
 42 fib dup .

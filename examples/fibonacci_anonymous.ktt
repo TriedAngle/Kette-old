@@ -1,0 +1,7 @@
+: when /*( bool fp -- )*/ in swap if then call else drop end ;
+
+: fib in
+  dup 1 > [ 1 - dup 1 - fib swap fib + ] when
+;
+
+42 fib .
