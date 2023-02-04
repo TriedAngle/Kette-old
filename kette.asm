@@ -2031,10 +2031,10 @@ create_assembly:
             
             ; SKIPPING
             lea     rdi, [r10 + r12]
-            mov     rsi, ASM_JMP
-            mov     rdx, ASM_JMP_LEN
+            mov     rsi, ASM_SKIP_JMP
+            mov     rdx, ASM_SKIP_JMP_LEN
             call    mem_move
-            add     r12, ASM_JMP_LEN
+            add     r12, ASM_SKIP_JMP_LEN
             
             
             lea     rsi, [rsp]
@@ -2188,10 +2188,10 @@ create_assembly:
                 add     r12, ASM_PROC_END_LEN
 
                 lea     rdi, [r10 + r12]
-                mov     rsi, ASM_ADDR
-                mov     rdx, ASM_ADDR_LEN
+                mov     rsi, ASM_SKIP_ADDR
+                mov     rdx, ASM_SKIP_ADDR_LEN
                 call    mem_move
-                add     r12, ASM_ADDR_LEN
+                add     r12, ASM_SKIP_ADDR_LEN
 
                 lea     rsi, [rsp]
                 sub     rsp, 20
@@ -2291,10 +2291,10 @@ create_assembly:
 
             ; SKIPPING
             lea     rdi, [r10 + r12]
-            mov     rsi, ASM_JMP
-            mov     rdx, ASM_JMP_LEN
+            mov     rsi, ASM_SKIP_JMP
+            mov     rdx, ASM_SKIP_JMP_LEN
             call    mem_move
-            add     r12, ASM_JMP_LEN
+            add     r12, ASM_SKIP_JMP_LEN
             
             lea     rsi, [rsp]
             sub     rsp, 20
@@ -2349,10 +2349,10 @@ create_assembly:
             add     r12, ASM_ANON_END_LEN
 
             lea     rdi, [r10 + r12]
-            mov     rsi, ASM_ADDR
-            mov     rdx, ASM_ADDR_LEN
+            mov     rsi, ASM_SKIP_ADDR
+            mov     rdx, ASM_SKIP_ADDR_LEN
             call    mem_move
-            add     r12, ASM_ADDR_LEN
+            add     r12, ASM_SKIP_ADDR_LEN
 
             lea     rsi, [rsp]
             sub     rsp, 20
@@ -3596,8 +3596,14 @@ ASM_ADDR_LEN    =   $ - ASM_ADDR
 ASM_COLON       db  ":", 10
 ASM_COLON_LEN=   $ - ASM_COLON
 
-ASM_JMP     db  "jmp _Addr"
-ASM_JMP_LEN =   $ - ASM_JMP
+ASM_JMP         db  "jmp _Addr"
+ASM_JMP_LEN     =   $ - ASM_JMP
+
+ASM_SKIP_JMP        db  "jmp _SkipAddr"
+ASM_SKIP_JMP_LEN    =   $ - ASM_SKIP_JMP
+
+ASM_SKIP_ADDR       db  "_SkipAddr"
+ASM_SKIP_ADDR_LEN   =   $ - ASM_SKIP_ADDR
 
 ASM_ANON1           db  "; -- ANONYMOUS PROC DECL --", 10, "; - push label -" , 10, "push _Proc"
 ASM_ANON1_LEN       =   $ - ASM_ANON1
