@@ -40,34 +40,35 @@ tk2Drop     = 24
 tkIf        = 25
 tkThen      = 26
 tkElse      = 27
-tkWhile     = 28
-tkDo        = 29
-tkProc      = 30
-tkIn        = 31
-tkEnd       = 32
+tkElif      = 28
+tkWhile     = 29
+tkDo        = 30
+tkProc      = 31
+tkIn        = 32
+tkEnd       = 33
 
-tkIdent     = 33
-tkPushStr   = 34
+tkIdent     = 34
+tkPushStr   = 35
 
-tkSys0      = 35
-tkSys1      = 36
-tkSys2      = 37
-tkSys3      = 38
-tkSys4      = 39
-tkSys5      = 40
-tkSys6      = 41
+tkSys0      = 36
+tkSys1      = 37
+tkSys2      = 38
+tkSys3      = 39
+tkSys4      = 40
+tkSys5      = 41
+tkSys6      = 42
 
-tkBitAnd    = 42
-tkBitOr     = 43
+tkBitAnd    = 43
+tkBitOr     = 44
 
-tkUse       = 44
+tkUse       = 45
 
-tkAnOpen    = 45
-tkAnClose   = 46
-tkCall      = 47
+tkAnOpen    = 46
+tkAnClose   = 47
+tkCall      = 48
 
-tkStackPtr  = 48
-tkDerefPtr  = 49
+tkStackPtr  = 49
+tkDerefPtr  = 50
 
 tkExit      = 255
 
@@ -695,6 +696,14 @@ tokenize_file:
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
+        lea     rsi, [KEY_ELIF]
+        mov     rdx, KEY_ELIF_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkElif
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
         lea     rsi, [KEY_WHILE]
         mov     rdx, KEY_WHILE_LEN
         call    mem_cmp
@@ -1174,6 +1183,8 @@ cross_reference_tokens:
         jz      .cross_reference_then
         cmp     byte [r12 + rbx], tkElse
         jz      .cross_reference_else
+        cmp     byte [r12 + rbx], tkElif
+        jz      .cross_reference_elif
         cmp     byte [r12 + rbx], tkWhile
         jz      .cross_reference_while
         cmp     byte [r12 + rbx], tkDo
@@ -1200,20 +1211,51 @@ cross_reference_tokens:
             cmp     r14, 0
             jz      error_then_without_if ; TODO: ERROR
             pop     rax
+            mov     r8, 0
             cmp     byte [r12 + rax], tkIf
-            jnz     error_then_without_if ; TODO: ERROR
+            mov     rcx, 1
+            cmovnz  rcx, r8
+            cmp     byte [r12 + rax], tkElif
+            mov     rdx, 1
+            cmovnz  rdx, r8
+            cmp     rcx, rdx
+            jz      error_then_without_if ; TODO: ERROR
+            mov     [r12 + rbx + 32], rax
+            push    rbx
+            jmp     .cross_reference_next
+        
+        .cross_reference_elif:
+            cmp     r14, 0
+            jz      error_else_without_if ; TODO: ERROR
+            pop     rax
+            cmp     byte [r12 + rax], tkThen
+            jnz     error_else_without_if ; TODO: ERROR
+
+            mov     r10, [r12 + rax + 32] ; if / elif
+            mov     [r12 + r10 + 24], r13
+            mov     [r12 + rbx + 16], r13
+            mov     [r12 + rbx + 24], r13 ; else -> end
+            inc     r13
+            mov     [r12 + rax + 24], r13 ; then -> else
+            mov     [r12 + rbx + 32], r13 ; else -> end
+            inc     r13
             push    rbx
             jmp     .cross_reference_next
 
-        ; TODO: Add else if
         .cross_reference_else:
             cmp     r14, 0
             jz      error_else_without_if ; TODO: ERROR
             pop     rax
             cmp     byte [r12 + rax], tkThen
             jnz     error_else_without_if ; TODO: ERROR
-            mov     [r12 + rax + 16], r13 ; if/then -> else
-            mov     [r12 + rbx + 24], r13 ; else jmp point
+
+            mov     r10, [r12 + rax + 32] ; if / elif
+            mov     [r12 + r10 + 24], r13
+            mov     [r12 + rbx + 16], r13
+            mov     [r12 + rbx + 24], r13 ; else -> end
+            inc     r13
+            mov     [r12 + rax + 24], r13 ; then -> else
+            mov     [r12 + rbx + 32], r13 ; else -> end
             inc     r13
             push    rbx
             jmp     .cross_reference_next
@@ -1318,7 +1360,7 @@ cross_reference_tokens:
                 jmp     .cross_reference_next
 
             .cross_reference_end_else:
-                mov     [r12 + rax + 16], r13
+                mov     [r12 + rax + 24], r13
                 mov     byte [r12 + rbx + 13], varEndIf ; should be able to reuse this
                 mov     [r12 + rbx + 16], r13
                 inc     r13
@@ -1554,6 +1596,9 @@ create_assembly:
 
         cmp     BYTE [r13 + rbx], tkElse
         jz      .output_else
+
+        cmp     BYTE [r13 + rbx], tkElif
+        jz      .output_elif
 
         cmp     BYTE [r13 + rbx], tkWhile
         jz      .output_while
@@ -1937,7 +1982,7 @@ create_assembly:
 
             lea     rsi, [rsp]
             sub     rsp, 20
-            mov     rdi, [r13 + rbx + 16]
+            mov     rdi, [r13 + rbx + 24]
             call    uitds
             lea     rdi, [r10 + r12]
             mov     rsi, rax
@@ -1957,10 +2002,38 @@ create_assembly:
             call    mem_move
             add     r12, ASM_ELSE_LEN
             
-            ; jump to end after if
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ADDR
+            mov     rdx, ASM_ADDR_LEN
+            call    mem_move
+            add     r12, ASM_ADDR_LEN
+
             lea     rsi, [rsp]
             sub     rsp, 20
             mov     rdi, [r13 + rbx + 16]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_JMP
+            mov     rdx, ASM_JMP_LEN
+            call    mem_move
+            add     r12, ASM_JMP_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24]
             call    uitds
             lea     rdi, [r10 + r12]
             mov     rsi, rax
@@ -1980,7 +2053,7 @@ create_assembly:
             
             lea     rsi, [rsp]
             sub     rsp, 20
-            mov     rdi, [r13 + rbx + 24]
+            mov     rdi, [r13 + rbx + 32]
             call    uitds
             lea     rdi, [r10 + r12]
             mov     rsi, rax
@@ -1995,6 +2068,80 @@ create_assembly:
             add     r12, ASM_COLON_LEN
             jmp     .assembly_next
             
+        .output_elif:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ELIF
+            mov     rdx, ASM_ELIF_LEN
+            call    mem_move
+            add     r12, ASM_ELIF_LEN
+            
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ADDR
+            mov     rdx, ASM_ADDR_LEN
+            call    mem_move
+            add     r12, ASM_ADDR_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 16]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+
+
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_JMP
+            mov     rdx, ASM_JMP_LEN
+            call    mem_move
+            add     r12, ASM_JMP_LEN
+
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 24]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+
+            mov     BYTE [r10 + r12], 10
+            add     r12, 1
+            
+            ; jump for if
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ADDR
+            mov     rdx, ASM_ADDR_LEN
+            call    mem_move
+            add     r12, ASM_ADDR_LEN
+            
+            lea     rsi, [rsp]
+            sub     rsp, 20
+            mov     rdi, [r13 + rbx + 32]
+            call    uitds
+            lea     rdi, [r10 + r12]
+            mov     rsi, rax
+            call    mem_move
+            add     rsp, 20
+            add     r12, rdx
+            
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_COLON
+            mov     rdx, ASM_COLON_LEN
+            call    mem_move
+            add     r12, ASM_COLON_LEN
+            jmp     .assembly_next
+
 
         .output_while:
             mov     r10, [r14]
@@ -3499,6 +3646,9 @@ KEY_THEN_LEN    =   $ - KEY_THEN
 KEY_ELSE        db  "else"
 KEY_ELSE_LEN    =   $ - KEY_ELSE
 
+KEY_ELIF        db  "elif"
+KEY_ELIF_LEN    =   $ - KEY_ELIF
+
 KEY_WHILE       db  "while"
 KEY_WHILE_LEN   =   $ - KEY_WHILE
 
@@ -3634,8 +3784,11 @@ ASM_IF_LEN      =   $ - ASM_IF
 ASM_THEN        db  "; -- THEN -- ", 10, "pop rax", 10, "cmp rax, 0", 10, "jz _Addr" ; insert jmp label 
 ASM_THEN_LEN    =   $ - ASM_THEN
 
-ASM_ELSE        db  "; -- ELSE --", 10, "jmp _Addr"
+ASM_ELSE        db  "; -- ELSE --", 10
 ASM_ELSE_LEN    =   $ - ASM_ELSE
+
+ASM_ELIF        db  "; -- ELIF --", 10
+ASM_ELIF_LEN    =   $ - ASM_ELIF
 
 ASM_WHILE       db  "; -- WHILE --", 10, "_Addr"
 ASM_WHILE_LEN   =   $ - ASM_WHILE
@@ -3650,7 +3803,7 @@ ASM_ADDR        db  "_Addr"
 ASM_ADDR_LEN    =   $ - ASM_ADDR
 
 ASM_COLON       db  ":", 10
-ASM_COLON_LEN=   $ - ASM_COLON
+ASM_COLON_LEN   =   $ - ASM_COLON
 
 ASM_JMP         db  "jmp _Addr"
 ASM_JMP_LEN     =   $ - ASM_JMP
