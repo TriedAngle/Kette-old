@@ -1,4 +1,6 @@
 {
+  "publisher": "TryAngle",
+  "license": "LICENSE.md",
   "name": "kette-language-support",
   "displayName": "Kette Language Support",
   "description": "Language Support for the Kette Programming Language",
