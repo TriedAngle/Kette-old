@@ -729,14 +729,6 @@ tokenize_file:
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
-        lea     rsi, [KEY_PROC]
-        mov     rdx, KEY_PROC_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     rcx, tkProc
-        jz      .finalize_keyword_simple
-
-        mov     rdi, r12
         lea     rsi, [KEY_IN]
         mov     rdx, KEY_IN_LEN
         call    mem_cmp
@@ -3977,9 +3969,6 @@ KEY_WHILE_LEN   =   $ - KEY_WHILE
 
 KEY_DO          db  "do"
 KEY_DO_LEN      =   $ - KEY_DO
-
-KEY_PROC        db  "proc"
-KEY_PROC_LEN    =   $ - KEY_PROC
 
 KEY_IN          db  "in"
 KEY_IN_LEN      =   $ - KEY_IN
