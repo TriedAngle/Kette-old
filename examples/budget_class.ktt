@@ -1,11 +1,11 @@
 var: lexer 24
 
-: lexer-counter-get in lexer get! ;
-: lexer-counter-inc in lexer get! 1 + lexer set! ;
-: lexer-line-get in lexer 8 + get! ;
-: lexer-line-inc in lexer 8 + get! 1 + lexer 8 + set! ;
-: lexer-col-get in lexer 16 + get! ;
-: lexer-col-inc in lexer 16 + get! 1 + lexer 16 + set! ;
+: lexer-counter-get in lexer get ;
+: lexer-counter-inc in lexer get 1 + lexer set ;
+: lexer-line-get in lexer 8 + get ;
+: lexer-line-inc in lexer 8 + get 1 + lexer 8 + set ;
+: lexer-col-get in lexer 16 + get ;
+: lexer-col-inc in lexer 16 + get 1 + lexer 16 + set ;
 
 5 while dup 0 > do
     lexer-counter-inc

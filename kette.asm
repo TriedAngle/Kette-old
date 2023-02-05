@@ -68,9 +68,16 @@ tkAnClose   = 47
 tkCall      = 48
 
 tkStackPtr  = 49
-tkGet       = 50
-tkSet       = 51
-tkVar       = 52
+
+tkGet1      = 50
+tkGet2      = 51
+tkGet4      = 52
+tkGet       = 53
+tkSet1      = 54
+tkSet2      = 55
+tkSet4      = 56
+tkSet       = 57
+tkVar       = 58
 
 tkExit      = 255
 
@@ -770,11 +777,59 @@ tokenize_file:
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
+        lea     rsi, [KEY_GET1]
+        mov     rdx, KEY_GET1_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkGet1
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_GET2]
+        mov     rdx, KEY_GET2_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkGet2
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_GET4]
+        mov     rdx, KEY_GET4_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkGet4
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
         lea     rsi, [KEY_GET]
         mov     rdx, KEY_GET_LEN
         call    mem_cmp
         cmp     rax, 1
         mov     rcx, tkGet
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SET1]
+        mov     rdx, KEY_SET1_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSet1
+        jz      .finalize_keyword_simple
+        
+        mov     rdi, r12
+        lea     rsi, [KEY_SET2]
+        mov     rdx, KEY_SET2_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSet2
+        jz      .finalize_keyword_simple
+        
+        mov     rdi, r12
+        lea     rsi, [KEY_SET4]
+        mov     rdx, KEY_SET4_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSet4
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -1730,9 +1785,21 @@ create_assembly:
         cmp     BYTE [r13 + rbx], tkStackPtr
         jz      .output_stackptr
 
+        cmp     BYTE [r13 + rbx], tkGet1
+        jz      .output_get1
+        cmp     BYTE [r13 + rbx], tkGet2
+        jz      .output_get2
+        cmp     BYTE [r13 + rbx], tkGet4
+        jz      .output_get4
         cmp     BYTE [r13 + rbx], tkGet
         jz      .output_get
 
+        cmp     BYTE [r13 + rbx], tkSet1
+        jz      .output_set1
+        cmp     BYTE [r13 + rbx], tkSet2
+        jz      .output_set2
+        cmp     BYTE [r13 + rbx], tkSet4
+        jz      .output_set4
         cmp     BYTE [r13 + rbx], tkSet
         jz      .output_set
 
@@ -2701,6 +2768,33 @@ create_assembly:
             add     r12, ASM_STACKPTR_LEN
             jmp     .assembly_next
 
+        .output_get1:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_GET1
+            mov     rdx, ASM_GET1_LEN
+            call    mem_move
+            add     r12, ASM_GET1_LEN
+            jmp     .assembly_next
+        
+        .output_get2:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_GET2
+            mov     rdx, ASM_GET2_LEN
+            call    mem_move
+            add     r12, ASM_GET2_LEN
+            jmp     .assembly_next
+        
+        .output_get4:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_GET4
+            mov     rdx, ASM_GET4_LEN
+            call    mem_move
+            add     r12, ASM_GET4_LEN
+            jmp     .assembly_next
+        
         .output_get:
             mov     r10, [r14]
             lea     rdi, [r10 + r12]
@@ -2710,6 +2804,33 @@ create_assembly:
             add     r12, ASM_GET_LEN
             jmp     .assembly_next
 
+        .output_set1:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SET1
+            mov     rdx, ASM_SET1_LEN
+            call    mem_move
+            add     r12, ASM_SET1_LEN
+            jmp     .assembly_next
+        
+        .output_set2:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SET2
+            mov     rdx, ASM_SET2_LEN
+            call    mem_move
+            add     r12, ASM_SET2_LEN
+            jmp     .assembly_next
+        
+        .output_set4:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SET4
+            mov     rdx, ASM_SET4_LEN
+            call    mem_move
+            add     r12, ASM_SET4_LEN
+            jmp     .assembly_next
+        
         .output_set:
             mov     r10, [r14]
             lea     rdi, [r10 + r12]
@@ -3875,10 +3996,28 @@ KEY_CALL_LEN    =   $ - KEY_CALL
 KEY_STACKPTR    db  "stackptr"
 KEY_STACKPTR_LEN=   $ - KEY_STACKPTR
 
-KEY_GET         db  "get!"
+KEY_GET1        db  "get1"
+KEY_GET1_LEN    =   $ - KEY_GET1
+
+KEY_GET2        db  "get2"
+KEY_GET2_LEN    =   $ - KEY_GET2
+
+KEY_GET4        db  "get4"
+KEY_GET4_LEN    =   $ - KEY_GET4
+
+KEY_GET         db  "get"
 KEY_GET_LEN     =   $ - KEY_GET
 
-KEY_SET         db  "set!"
+KEY_SET1        db  "set1"
+KEY_SET1_LEN    =   $ - KEY_SET1
+
+KEY_SET2        db  "set2"
+KEY_SET2_LEN    =   $ - KEY_SET2
+
+KEY_SET4        db  "set4"
+KEY_SET4_LEN    =   $ - KEY_SET4
+
+KEY_SET         db  "set"
 KEY_SET_LEN     =   $ - KEY_SET
 
 KEY_VAR         db  "var:"
@@ -4064,10 +4203,28 @@ ASM_CALL_LEN        =   $ -  ASM_CALL
 ASM_STACKPTR        db  "; -- STACKPTR --", 10, "pop rax", 10, "lea rax, [rsp + rax]", 10, "push rax", 10
 ASM_STACKPTR_LEN    =   $ - ASM_STACKPTR
 
-ASM_GET             db  "; -- GET --", 10, "pop rax", 10, "mov rax, [rax]", 10, "push rax", 10
+ASM_GET1            db  "; -- GET 1 BYTE --", 10, "pop rax", 10, "xor rdx, rdx", 10, "mov dl, byte [rax]", 10, "push rdx"
+ASM_GET1_LEN        =   $ - ASM_GET1
+
+ASM_GET2            db  "; -- GET 2 BYTE --", 10, "pop rax", 10, "xor rdx, rdx", 10, "mov dx, word [rax]", 10, "push rdx"
+ASM_GET2_LEN        =   $ - ASM_GET2
+
+ASM_GET4            db  "; -- GET 4 BYTE --", 10, "pop rax", 10, "xor rdx, rdx", 10, "mov edx, dword [rax]", 10, "push rdx"
+ASM_GET4_LEN        =   $ - ASM_GET4
+
+ASM_GET             db  "; -- GET 8 BYTE --", 10, "pop rax", 10, "mov rax, [rax]", 10, "push rax", 10
 ASM_GET_LEN         =   $ - ASM_GET
 
-ASM_SET             db  "; -- SET --", 10, "pop rax", 10, "pop rdx", 10, "mov [rax], rdx", 10
+ASM_SET1            db  "; -- SET 1 BYTE --", 10, "pop rax", 10, "pop rdx", 10, "mov byte [rax], dl", 10
+ASM_SET1_LEN        =   $ - ASM_SET1
+
+ASM_SET2            db  "; -- SET 2 BYTE --", 10, "pop rax", 10, "pop rdx", 10, "mov word [rax], dx", 10
+ASM_SET2_LEN        =   $ - ASM_SET2
+
+ASM_SET4            db  "; -- SET 4 BYTE --", 10, "pop rax", 10, "pop rdx", 10, "mov dword [rax], edx", 10
+ASM_SET4_LEN        =   $ - ASM_SET4
+
+ASM_SET             db  "; -- SET 8 BYTE --", 10, "pop rax", 10, "pop rdx", 10, "mov [rax], rdx", 10
 ASM_SET_LEN         =   $ - ASM_SET
 
 ASM_VAR_REF         db  "; -- VAR REF --", 10, "push var"
