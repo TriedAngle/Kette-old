@@ -68,7 +68,9 @@ tkAnClose   = 47
 tkCall      = 48
 
 tkStackPtr  = 49
-tkDerefPtr  = 50
+tkGet       = 50
+tkSet       = 51
+tkVar       = 52
 
 tkExit      = 255
 
@@ -79,6 +81,7 @@ varEndProc  = 3
 
 varIdentIgnore  = 1
 varIdentProc    = 2
+varIdentVar     = 3
 
 varStringIgnore = 1
 
@@ -306,7 +309,6 @@ entry $
     push    rdi ; len output | r15 - 168
     xor     rax, rax
     push    rax ; offset output | r15 - 176
-
 
     mov     rdi, r15
     mov     rsi, r14
@@ -768,11 +770,27 @@ tokenize_file:
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
-        lea     rsi, [KEY_DEREFPTR]
-        mov     rdx, KEY_DEREFPTR_LEN
+        lea     rsi, [KEY_GET]
+        mov     rdx, KEY_GET_LEN
         call    mem_cmp
         cmp     rax, 1
-        mov     rcx, tkDerefPtr
+        mov     rcx, tkGet
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_SET]
+        mov     rdx, KEY_SET_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkSet
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_VAR]
+        mov     rdx, KEY_VAR_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkVar
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -1199,6 +1217,8 @@ cross_reference_tokens:
         jz      .cross_reference_anonymous_open
         cmp     byte [r12 + rbx], tkAnClose
         jz      .cross_reference_anonymous_close
+        cmp     byte [r12 + rbx], tkVar
+        jz      .cross_reference_var
 
         jmp     .cross_reference_next
 
@@ -1388,7 +1408,41 @@ cross_reference_tokens:
             pop     r13
             dec     r14
             jmp     .cross_reference_next
-        
+
+        .cross_reference_var:
+            cmp     byte [r12 + rbx + 48], tkIdent
+            jnz     error_missing_var_identifier ; TODO: ERROR
+            
+            mov     byte [r12 + rbx + 48 + 13], varIdentIgnore
+            
+            cmp     byte [r12 + rbx + 48 + 48], tkPushInt
+            jnz     error_missing_var_identifier ; TODO: ERROR
+            mov     byte [r12 + rbx + 48 + 48], tkNoOp
+            mov     rax, [r12 + rbx + 48 + 48 + 16]
+            mov     [r12 + rbx + 24], rax
+
+            push    r13
+            lea     r10, [r12 + rbx + 48] ; identifier 
+            mov     r13, [r15 - 144] ; id 
+
+            mov     [r12 + rbx + 16], r13 ; not needed but nice for debug
+
+            mov     r11, [r15 - 104] ; var mem
+            mov     r8 , [r15 - 120] ; var offset
+
+            mov     [r11 + r8 +  0], r13
+            mov     rax, [r10 + 16] ; ptr
+            mov     [r11 + r8 +  8], rax
+            mov     rax, [r10 + 24] ; len
+            mov     [r11 + r8 + 16], rax
+            mov     rax, [r12 + rbx + 24]
+            mov     [r11 + r8 + 24], rax
+            
+            add     qword [r15 - 120], 32
+            inc     qword [r15 - 144]
+            pop     r13
+            jmp     .cross_reference_next
+
         .cross_reference_next:
 
         ; - BUFFER PROC GROW -
@@ -1469,6 +1523,55 @@ cross_reference_tokens:
         jmp     .cross_reference_calls
 
     .cross_reference_calls_end:
+
+    mov     r12, [r15]
+    lea     r12, [r12]
+    xor     rbx, rbx
+    .cross_reference_var_refs:
+        cmp     rbx, [r15 - 16]
+        jz      .cross_reference_var_refs_end
+
+        cmp     byte [r12 + rbx], tkIdent
+        jz      .cross_reference_var_ref
+        jmp     .cross_reference_var_refs_next
+
+        .cross_reference_var_ref:
+            cmp     BYTE [r12 + rbx + 13], 0
+            jnz     .cross_reference_var_refs_next
+
+            mov     r10, [r15 - 104]
+            lea     r10, [r10]
+            xor     r13, r13
+            .find_ref_id:
+                cmp     r13, [r15 - 120]
+                jz      .find_ref_id_end
+
+                mov     rdx, [r10 + r13 + 16]
+                mov     rcx, [r12 + rbx + 24]
+                cmp     rdx, rcx
+                jnz     .find_ref_id_next ; unequal length
+
+                mov     rdi, [r10 + r13 +  8]
+                mov     rsi, [r12 + rbx + 16]
+                mov     rdx, [r10 + r13 + 16]
+                call    mem_cmp
+                cmp     rax, 0
+                jz      .find_ref_id_next
+
+                mov     byte [r12 + rbx + 13], varIdentVar
+                mov     rax, qword [r10 + r13]
+                mov     qword [r12 + rbx + 16], rax ; override bc why not
+                jmp     .find_ref_id_end
+                
+                .find_ref_id_next:
+                add     r13, 32
+                jmp     .find_ref_id
+            .find_ref_id_end:
+
+        .cross_reference_var_refs_next:
+        add     rbx, 48
+        jmp     .cross_reference_var_refs
+    .cross_reference_var_refs_end:
 
     pop     r15
     pop     r14
@@ -1627,8 +1730,14 @@ create_assembly:
         cmp     BYTE [r13 + rbx], tkStackPtr
         jz      .output_stackptr
 
-        cmp     BYTE [r13 + rbx], tkDerefPtr
-        jz      .output_derefptr
+        cmp     BYTE [r13 + rbx], tkGet
+        jz      .output_get
+
+        cmp     BYTE [r13 + rbx], tkSet
+        jz      .output_set
+
+        cmp     BYTE [r13 + rbx], tkVar
+        jz      .assembly_next
 
         cmp     BYTE [r13 + rbx], tkSys0
         jz      .output_syscall0
@@ -1683,7 +1792,6 @@ create_assembly:
             jmp     .assembly_next
 
         .output_push_string:
-
             mov     r10, [r14]
             lea     rdi, [r10 + r12]
             mov     rsi, ASM_PUSH_STR_L
@@ -2386,6 +2494,8 @@ create_assembly:
         .output_ident:
             cmp     BYTE [r13 + rbx + 13], varIdentProc
             jz      .output_proc_call
+            cmp     BYTE [r13 + rbx + 13], varIdentVar
+            jz      .output_var_ref
             cmp     BYTE [r13 + rbx + 13], varIdentIgnore
             jz      .assembly_next
             ; TODO: use this to detect identifiers without decl
@@ -2428,12 +2538,33 @@ create_assembly:
                 add     rsp, 20
                 add     r12, rdx
 
-
                 lea     rdi, [r10 + r12]
                 mov     rsi, ASM_CALL_END
                 mov     rdx, ASM_CALL_END_LEN
                 call    mem_move
                 add     r12, ASM_CALL_END_LEN
+                jmp     .assembly_next
+            
+            .output_var_ref:
+                mov     r10, [r14]
+                lea     rdi, [r10 + r12]
+                mov     rsi, ASM_VAR_REF
+                mov     rdx, ASM_VAR_REF_LEN
+                call    mem_move
+                add     r12, ASM_VAR_REF_LEN
+                
+                lea     rsi, [rsp]
+                sub     rsp, 20
+                mov     rdi, [r13 + rbx + 16]
+                call    uitds
+                lea     rdi, [r10 + r12]
+                mov     rsi, rax
+                call    mem_move
+                add     rsp, 20
+                add     r12, rdx
+
+                mov     BYTE [r10 + r12], 10
+                add     r12, 1
 
                 jmp     .assembly_next
 
@@ -2570,13 +2701,22 @@ create_assembly:
             add     r12, ASM_STACKPTR_LEN
             jmp     .assembly_next
 
-        .output_derefptr:
+        .output_get:
             mov     r10, [r14]
             lea     rdi, [r10 + r12]
-            mov     rsi, ASM_DEREFPTR
-            mov     rdx, ASM_DEREFPTR_LEN
+            mov     rsi, ASM_GET
+            mov     rdx, ASM_GET_LEN
             call    mem_move
-            add     r12, ASM_DEREFPTR_LEN
+            add     r12, ASM_GET_LEN
+            jmp     .assembly_next
+
+        .output_set:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_SET
+            mov     rdx, ASM_SET_LEN
+            call    mem_move
+            add     r12, ASM_SET_LEN
             jmp     .assembly_next
 
         .output_syscall0:
@@ -2597,7 +2737,6 @@ create_assembly:
             add     r12, ASM_SYS1_LEN
             jmp     .assembly_next
 
-
         .output_syscall2:
             mov     r10, [r14]
             lea     rdi, [r10 + r12]
@@ -2606,7 +2745,6 @@ create_assembly:
             call    mem_move
             add     r12, ASM_SYS2_LEN
             jmp     .assembly_next
-
 
         .output_syscall3:
             mov     r10, [r14]
@@ -2617,7 +2755,6 @@ create_assembly:
             add     r12, ASM_SYS3_LEN
             jmp     .assembly_next
 
-
         .output_syscall4:
             mov     r10, [r14]
             lea     rdi, [r10 + r12]
@@ -2626,7 +2763,6 @@ create_assembly:
             call    mem_move
             add     r12, ASM_SYS4_LEN
             jmp     .assembly_next
-
 
         .output_syscall5:
             mov     r10, [r14]
@@ -2869,11 +3005,61 @@ assembly_add_mutable_constants:
 
     xor     rbx, rbx
 
-    lea     rdi, [r12 + r10]
+    lea     rdi, [r10 + r12]
     mov     rsi, ASM_MUTABLE_DATA_SECTION
     mov     rdx, ASM_MUTABLE_DATA_SECTION_LEN
     call    mem_move
     add     r12, ASM_MUTABLE_DATA_SECTION_LEN
+    mov     [r14 - 16], r12
+
+    mov     r13, [r15] ; vars
+
+    xor     rbx, rbx
+    .assembly_vars:
+        cmp     rbx, [r15 - 16]
+        jz      .assembly_vars_end
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_VAR_DECL
+        mov     rdx, ASM_VAR_DECL_LEN
+        call    mem_move
+        add     r12, ASM_VAR_DECL_LEN
+    
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx]
+        call    uitds
+        lea     rdi, [r10 + r12]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r12, rdx
+
+        lea     rdi, [r10 + r12]
+        mov     rsi, ASM_RESB_WORD
+        mov     rdx, ASM_RESB_WORD_LEN
+        call    mem_move
+        add     r12, ASM_RESB_WORD_LEN
+
+        lea     rsi, [rsp]
+        sub     rsp, 20
+        mov     rdi, [r13 + rbx + 24]
+        call    uitds
+        lea     rdi, [r10 + r12]
+        mov     rsi, rax
+        call    mem_move
+        add     rsp, 20
+        add     r12, rdx
+
+        mov     BYTE [r10 + r12], 10
+        add     r12, 1
+
+        .assembly_vars_next:
+        add     rbx, 32
+        jmp     .assembly_vars
+    .assembly_vars_end:
+    mov     BYTE [r10 + r12], 10
+    add     r12, 1
 
     mov     [r14 - 16], r12
 
@@ -3539,6 +3725,19 @@ error_missing_anonymous_close:
     mov     rax, SYS_EXIT
     syscall
 
+
+error_missing_var_identifier:
+    mov     rdi, STDOUT
+    mov     rsi, err12
+    mov     rdx, err12len
+    mov     rax, SYS_WRITE
+    syscall
+
+    mov     rdi, 1
+    mov     rax, SYS_EXIT
+    syscall
+
+
 error_illegal:
     mov     rdi, STDOUT
     mov     rsi, errminus1
@@ -3593,6 +3792,9 @@ err10len    =   $ - err10
 
 err11       db  "Expected closing ] to close anonymous function"
 err11len    =   $ - err11
+
+err12       db  "Missing identifier for variable"
+err12len    =   $ - err12
 
 errminus1   db  "illegal error LOL, this is probably a parser error"
 errminus1len=   $ - errminus1
@@ -3673,8 +3875,14 @@ KEY_CALL_LEN    =   $ - KEY_CALL
 KEY_STACKPTR    db  "stackptr"
 KEY_STACKPTR_LEN=   $ - KEY_STACKPTR
 
-KEY_DEREFPTR    db  "derefptr"
-KEY_DEREFPTR_LEN=   $ - KEY_DEREFPTR
+KEY_GET         db  "get!"
+KEY_GET_LEN     =   $ - KEY_GET
+
+KEY_SET         db  "set!"
+KEY_SET_LEN     =   $ - KEY_SET
+
+KEY_VAR         db  "var:"
+KEY_VAR_LEN     =   $ - KEY_VAR
 
 KEY_SYS0        db  "syscall0"
 KEY_SYS0_LEN    =   $ - KEY_SYS0
@@ -3856,8 +4064,17 @@ ASM_CALL_LEN        =   $ -  ASM_CALL
 ASM_STACKPTR        db  "; -- STACKPTR --", 10, "pop rax", 10, "lea rax, [rsp + rax]", 10, "push rax", 10
 ASM_STACKPTR_LEN    =   $ - ASM_STACKPTR
 
-ASM_DEREFPTR        db  "; -- DEREFPTR --", 10, "pop rax", 10, "mov rax, [rax]", 10, "push rax", 10
-ASM_DEREFPTR_LEN    =   $ - ASM_DEREFPTR
+ASM_GET             db  "; -- GET --", 10, "pop rax", 10, "mov rax, [rax]", 10, "push rax", 10
+ASM_GET_LEN         =   $ - ASM_GET
+
+ASM_SET             db  "; -- SET --", 10, "pop rax", 10, "pop rdx", 10, "mov [rax], rdx", 10
+ASM_SET_LEN         =   $ - ASM_SET
+
+ASM_VAR_REF         db  "; -- VAR REF --", 10, "push var"
+ASM_VAR_REF_LEN     =   $ - ASM_VAR_REF
+
+ASM_VAR_DECL        db  "var"
+ASM_VAR_DECL_LEN    =   $ - ASM_VAR_DECL
 
 ; SYSCALLS (WORKS GOOD ENOUGH FOR NOW)
 ASM_SYS0        db  "; -- SYSCALL0 --", 10, "pop rax", 10, "syscall", 10, "push rax", 10
@@ -3895,6 +4112,9 @@ ASM_CONST_STR_L_LEN =   $ - ASM_CONST_STR_L
 
 ASM_DB_WORD         db  " db "
 ASM_DB_WORD_LEN     =   $ - ASM_DB_WORD
+
+ASM_RESB_WORD       db  " rb "
+ASM_RESB_WORD_LEN   =   $ - ASM_RESB_WORD
 
 ASM_EQ_LEN_WORD     db  " = $ - "
 ASM_EQ_LEN_WORD_LEN =   $ - ASM_EQ_LEN_WORD

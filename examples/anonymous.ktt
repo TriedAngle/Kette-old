@@ -1,3 +1,7 @@
-: when /*( bool fp -- )*/ in swap if then call end ;
+: when in swap if then call end ;
+
+: choice in rot if then drop call else swap drop call end ;
 
 1 [ 69 . ] when
+
+49 3 > [ 690 . ] [ 420 . ] choice
