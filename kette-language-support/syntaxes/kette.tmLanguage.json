@@ -20,10 +20,28 @@
 	],
 	"repository": {
 		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.kette",
-				"match": "\\b(if|then|elif|else|while|do|in|end|:|;|var:|use:|set1|set2|set4|set|get1|get2|get4|get)\\b"
-			}]
+			"patterns": [
+				{
+					"name": "keyword.control.kette",
+					"match": "\\b(if|then|elif|else|while|do|in|end|set1|set2|set4|set|get1|get2|get4|get)\\b"
+				},
+				{
+					"name": "keyword.var.kette",
+					"match": "var:"
+				},
+				{
+					"name": "keyword.use.kette",
+					"match": "use:"
+				},
+				{
+					"name": "keyword.word.start.kette",
+					"match": ":"
+				},
+				{
+					"name": "keyword.word.end.kette",
+					"match": ";"
+				}
+			]
 		},
 		"strings": {
 			"name": "string.quoted.double.kette",
