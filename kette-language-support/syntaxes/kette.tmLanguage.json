@@ -22,7 +22,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.kette",
-				"match": "\\b(if|then|elif|else|while|do|in|end|:|;|use|set1|set2|set4|set|get1|get2|get4|get)\\b"
+				"match": "\\b(if|then|elif|else|while|do|in|end|:|;|var:|use:|set1|set2|set4|set|get1|get2|get4|get)\\b"
 			}]
 		},
 		"strings": {

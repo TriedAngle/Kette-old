@@ -1,5 +1,5 @@
 var: hello 8
 
-420 hello set!
+420 hello set
 
-hello get! .
+hello get .

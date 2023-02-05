@@ -3976,7 +3976,7 @@ KEY_IN_LEN      =   $ - KEY_IN
 KEY_END         db  "end"
 KEY_END_LEN     =   $ - KEY_END
 
-KEY_USE         db  "use"
+KEY_USE         db  "use:"
 KEY_USE_LEN     =   $ - KEY_USE
 
 KEY_CALL        db  "call"
