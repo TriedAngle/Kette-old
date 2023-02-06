@@ -5,6 +5,8 @@
 : SysLSeek      in 8    ;
 : SysMMap       in 9    ;
 
+: SysTest ( -- ) 5
+
 : OpRead        in 0    ;
 : OpWrite       in 1    ;
 : OpCreate      in 64   ;

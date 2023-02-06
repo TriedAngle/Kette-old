@@ -44,7 +44,7 @@ tkElif      = 28
 tkWhile     = 29
 tkDo        = 30
 tkProc      = 31
-tkIn        = 32
+tkStackEff  = 32
 tkEnd       = 33
 
 tkIdent     = 34
@@ -535,6 +535,10 @@ tokenize_file:
 
         .not_symbol_len3:
         ; skip comments
+        mov     rax, tkStackEff
+        cmp     WORD [r12], "( "
+        cmovz   rcx, rax
+
         cmp     WORD [r12], "//"
         jz      .tokenize_next_skip
         mov     ax, WORD [KEY_CMMT_START]
@@ -726,14 +730,6 @@ tokenize_file:
         call    mem_cmp
         cmp     rax, 1
         mov     rcx, tkDo
-        jz      .finalize_keyword_simple
-
-        mov     rdi, r12
-        lea     rsi, [KEY_IN]
-        mov     rdx, KEY_IN_LEN
-        call    mem_cmp
-        cmp     rax, 1
-        mov     rcx, tkIn
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -1122,6 +1118,9 @@ next_word:
         cmp     WORD [r13 + rbx], "//"
         jz      .handle_comment
 
+        cmp     WORD [r13 + rbx], "( "
+        jz      .handle_stack_effect
+
         mov     ax, WORD [KEY_CMMT_START]
         cmp     WORD [r13 + rbx], ax
         jz      .handle_block_comment
@@ -1167,6 +1166,34 @@ next_word:
                 .move_until_block_comment_end_next:
                 inc     rbx
                 jmp     .move_until_block_comment_end
+        
+        .handle_stack_effect:
+            add     rbx, 2
+            .move_until_stack_effect_end:
+                cmp     rbx, qword [r15 - 16] ; TODO: ERROR
+                jz      .find_whitespace_end
+                cmp     WORD [r13 + rbx], " )"
+                jz      .found_stack_effect
+                cmp     BYTE [r13 + rbx], 10
+                jz      .stack_effect_handle_newline
+                cmp     BYTE [r13 + rbx], 32
+                jz      .stack_effect_handle_whitespace
+
+                jmp     .handle_stack_effect_next
+                .stack_effect_handle_newline:
+                    inc     QWORD [r15 - 24]
+                    mov     QWORD [r15 - 32], 1
+                    jmp     .handle_stack_effect_next
+                .stack_effect_handle_whitespace:
+                    inc     QWORD [r15 - 32]
+                    jmp     .handle_stack_effect_next
+                .found_stack_effect:
+                    add     rbx, 2
+                    jmp     .find_whitespace_end
+
+            .handle_stack_effect_next:
+            inc     rbx
+            jmp     .move_until_stack_effect_end
         
         .handle_string:
             inc     rbx
@@ -1256,8 +1283,6 @@ cross_reference_tokens:
         jz      .cross_reference_do
         cmp     byte [r12 + rbx], tkProc
         jz      .cross_reference_proc
-        cmp     byte [r12 + rbx], tkIn
-        jz      .cross_reference_in
         cmp     byte [r12 + rbx], tkEnd
         jz      .cross_reference_end
         cmp     byte [r12 + rbx], tkAnOpen
@@ -1340,25 +1365,12 @@ cross_reference_tokens:
             push    rbx
             jmp     .cross_reference_next
 
-        ; TODO: retire in for ( )
         .cross_reference_proc:
             cmp     byte [r12 + rbx + 48], tkIdent
             jnz     error_no_ident_after_proc ; TODO: ERROR
             push    rbx
             inc     r14
             mov     byte [r12 + rbx + 48 + 13], varIdentIgnore
-            
-            jmp     .cross_reference_next
-
-        .cross_reference_in:
-            cmp     r14, 0
-            jz      error_in_without_proc ; TODO: ERROR
-            pop     rax
-            cmp     byte [r12 + rax], tkProc
-            jnz      error_in_without_proc ; TODO: ERROR (improve)
-            mov     [r12 + rbx + 16], rax
-            push    rbx
-            
             jmp     .cross_reference_next
 
         .cross_reference_end:
@@ -1374,7 +1386,7 @@ cross_reference_tokens:
             jz      .cross_reference_end_do
             cmp     byte [r12 + rax], tkElse
             jz      .cross_reference_end_else
-            cmp     byte [r12 + rax], tkIn
+            cmp     byte [r12 + rax], tkProc
             jz      .cross_reference_end_proc
             
             jmp     error_illegal ; TODO: ERROR
@@ -1388,16 +1400,14 @@ cross_reference_tokens:
                 jmp     .cross_reference_next
             
             .cross_reference_end_proc:
-                mov     r9, [r12 + rax + 16]  ; proc entry
-                      ; rbx                   ; end entry
                 push    r13
                 
                 mov     r13, [r15 - 136]
-                mov     qword [r12 + r9  + 16], r13
+                mov     qword [r12 + rax  + 16], r13
                 mov     byte  [r12 + rbx + 13], varEndProc
                 mov     qword [r12 + rbx + 16], r13 ; end addr
                 
-                lea     r10, [r12 + r9 + 48] ; identifier
+                lea     r10, [r12 + rax + 48] ; identifier
             
                 mov     r11, [r15 - 48] ; proc mem
                 mov     r8, [r15 - 64] ; proc offset
@@ -3969,9 +3979,6 @@ KEY_WHILE_LEN   =   $ - KEY_WHILE
 
 KEY_DO          db  "do"
 KEY_DO_LEN      =   $ - KEY_DO
-
-KEY_IN          db  "in"
-KEY_IN_LEN      =   $ - KEY_IN
 
 KEY_END         db  "end"
 KEY_END_LEN     =   $ - KEY_END

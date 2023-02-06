@@ -6,6 +6,9 @@
 			"include": "#keywords"
 		},
 		{
+			"include": "stack-effects"
+		},
+		{
 			"include": "#strings"
 		},
 		{
@@ -23,10 +26,10 @@
 			"patterns": [
 				{
 					"name": "keyword.control.kette",
-					"match": "\\b(if|then|elif|else|while|do|in|end|set1|set2|set4|set|get1|get2|get4|get)\\b"
+					"match": "\\b(if|then|elif|else|while|do|end|set1|set2|set4|set|get1|get2|get4|get)\\b"
 				},
 				{
-					"name": "keyword.var.kette",
+					"name": "variable.language.kette",
 					"match": "var:"
 				},
 				{
@@ -34,14 +37,19 @@
 					"match": "use:"
 				},
 				{
-					"name": "keyword.word.start.kette",
+					"name": "entity.name.function.kette",
 					"match": ":"
 				},
 				{
-					"name": "keyword.word.end.kette",
+					"name": "entity.name.function.kette",
 					"match": ";"
 				}
 			]
+		},
+		"stack-effects": {
+			"name": "entity.name.type.kette",
+			"begin": "(",
+			"end": ")"
 		},
 		"strings": {
 			"name": "string.quoted.double.kette",

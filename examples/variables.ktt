@@ -1,5 +1,11 @@
+use: "examples/hello.ktt"
+
 var: hello 8
 
 420 hello set
 
+hello get .
+
+hello get dup .
+add-5 hello set
 hello get .
