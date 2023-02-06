@@ -4,7 +4,7 @@
   "name": "kette-language-support",
   "displayName": "Kette Language Support",
   "description": "Language Support for the Kette Programming Language",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "repository": {
     "type": "git",
     "url": "https://github.com/ice-language/Kette"

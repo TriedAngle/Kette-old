@@ -27,3 +27,11 @@ fibo get dup . fib >>global>>temp
 global>>temp>> .
 
 fibo get .
+
+: ➕ ( a b -- c ) + ;
+
+: 🔢🗣️ ( n -- ) . ;
+
+: 📋🗣️ ( len ptr -- ) println ;
+
+"number is: " 📋🗣️ 5 7 ➕ 🔢🗣️ 
