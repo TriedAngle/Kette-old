@@ -1128,6 +1128,7 @@ next_word:
         jmp     .find_whitespace_next
         .handle_comment:
             add     rbx, 2
+            add     QWORD [r15 - 32], 2
             .move_until_comment_end:
                 cmp     rbx, QWORD [r15 - 16]
                 jz      .find_whitespace_end
@@ -1137,11 +1138,13 @@ next_word:
                 .found_comment:
                     jmp     .find_whitespace_end
                 .move_until_comment_end_next:
+                inc     QWORD [r15 - 32]
                 inc     rbx
                 jmp     .move_until_comment_end
 
         .handle_block_comment:
             add     rbx, 2
+            add     QWORD [r15 - 32], 2
             .move_until_block_comment_end:
                 cmp     rbx, QWORD [r15 - 16]
                 jz      .find_whitespace_end
@@ -1161,14 +1164,17 @@ next_word:
                     inc     QWORD [r15 - 32]
                     jmp     .move_until_block_comment_end_next
                 .found_block_comment:
+                    add     QWORD [r15 - 32], 2
                     add     rbx, 2
                     jmp     .find_whitespace_end
                 .move_until_block_comment_end_next:
                 inc     rbx
+                inc     QWORD [r15 - 32]
                 jmp     .move_until_block_comment_end
         
         .handle_stack_effect:
             add     rbx, 2
+            add     QWORD [r15 - 32], 2
             .move_until_stack_effect_end:
                 cmp     rbx, qword [r15 - 16] ; TODO: ERROR
                 jz      .find_whitespace_end
@@ -1188,15 +1194,18 @@ next_word:
                     inc     QWORD [r15 - 32]
                     jmp     .handle_stack_effect_next
                 .found_stack_effect:
+                    add     QWORD [r15 - 32], 2
                     add     rbx, 2
                     jmp     .find_whitespace_end
 
             .handle_stack_effect_next:
             inc     rbx
+            inc     QWORD [r15 - 32]
             jmp     .move_until_stack_effect_end
         
         .handle_string:
             inc     rbx
+            inc     QWORD [r15 - 32]
             .move_until_string_end:
                 cmp     rbx, QWORD [r15 - 16] ; TODO: ERROR
                 jz      .find_whitespace_end
@@ -1206,9 +1215,11 @@ next_word:
                 jmp     .move_until_string_end_next
                 .found_string:
                     inc     rbx
+                    inc     QWORD [r15 - 32]
                     jmp     .find_whitespace_end
                 .move_until_string_end_next:
                 inc     rbx
+                inc     QWORD [r15 - 32]
                 jmp     .move_until_string_end
         
         .find_whitespace_next:
