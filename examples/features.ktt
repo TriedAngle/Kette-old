@@ -1,0 +1,29 @@
+use: "examples/hello.ktt"
+
+var: fibo 8
+
+25 fibo set
+
+var: global 24
+
+: global>>counter>> ( -- c ) global get ;
+: global>>counter<<inc ( -- ) global get 1 + global set ;
+: global>>temp>> ( -- n ) global 8 + get ;
+: >>global>>temp ( n -- ) global 8 + set ;
+
+10 [
+  global>>counter<<inc
+  "counter: " print-string global>>counter>> .
+] countDown
+
+: fib ( n -- n' )
+  dup 1 > [ 1 - dup 1 - fib swap fib + ] when
+;
+
+"calculate fibonacci: " print-string
+fibo get dup . fib >>global>>temp
+
+"calulated fibonacci: " print-string
+global>>temp>> .
+
+fibo get .

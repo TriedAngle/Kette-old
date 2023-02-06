@@ -1,7 +1,22 @@
-: print-5 5 . ;
+: add-4 ( n -- n' ) 4 + ;
 
-: print-1-5 1 . print-5 ;
+: countDown ( n fp -- ) 
+  while over 0 > do
+    2dup call drop 
+    swap 1 - swap
+  end 
+;
 
-: add-4  4 + ;
+: when ( b f -- ) swap if then call else drop end ;
 
-: add-5  5 + ;
+: SysWrite  1 ;
+
+: StdOut    1 ;
+
+: file-write ( len ptr fd -- ) SysWrite syscall3 drop ;
+
+: print-string ( len ptr -- ) StdOut file-write ;
+
+: print-newline ( -- ) 10 1 8 stackptr print-string drop ;
+
+: println ( len ptr -- ) print-string print-newline ;

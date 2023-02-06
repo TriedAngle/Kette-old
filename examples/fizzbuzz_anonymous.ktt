@@ -1,40 +1,27 @@
-: when /*( bool fp -- )*/ in swap if then call else drop end ;
+: SysWrite  1 ;
 
-: SysWrite      in 1    ;
+: StdOut    1 ;
 
-: StdOut        in 1    ;
+: file-write ( len ptr fd -- ) SysWrite syscall3 drop ;
 
-: file-write /*( len ptr fd -- )*/ in SysWrite syscall3 drop ;
+: print-string ( len ptr -- ) StdOut file-write ;
 
-: print-string /*( len ptr -- )*/ in StdOut file-write ;
+: print-newline ( -- ) 10 1 8 stackptr print-string drop ;
 
-: print-newline /*( -- )*/ in 10 1 8 stackptr print-string drop ;
+: println ( len ptr -- ) print-string print-newline ; 
 
-: println /*( len ptr -- )*/ in print-string print-newline ; 
+: when ( b fp -- ) swap if then call else drop end ;
 
-
-: countDown /*( n fp -- )*/ in 
+: countDown ( n fp -- ) 
   while over 0 > do
     2dup call drop 
     swap 1 - swap
   end 
 ;
 
-50 [
+20 [
   if dup 3 % 0 = over 5 % 0 = and then "FizzBuzz" println
   elif dup 3 % 0 = then "Fizz" println
   elif dup 5 % 0 = then "Buzz" println
   else dup . end
 ] countDown
-
-
-// 15 while dup 0 > do
-//     if dup 3 % 0 = over 5 % 0 = and then
-//         "FizzBuzz" print-string 0 . 
-//     else
-//         if dup 3 % 0 = then "Fizz" print-string 0 . end
-//         if dup 5 % 0 = then "Buzz" print-string 0 . end
-//     end
-//     dup .
-//     1 - 
-// end

@@ -26,23 +26,27 @@
 			"patterns": [
 				{
 					"name": "keyword.control.kette",
-					"match": "\\b(if|then|elif|else|while|do|end|set1|set2|set4|set|get1|get2|get4|get)\\b"
+					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,)(if|then|elif|else|while|do|end|set|set1|set2|set4|get|get1|get2|get4)"
 				},
 				{
 					"name": "variable.language.kette",
-					"match": "var:"
+					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,)var:"
 				},
 				{
-					"name": "keyword.use.kette",
-					"match": "use:"
+					"name": "keyword.operator.new.kette",
+					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,)use:"
 				},
 				{
-					"name": "entity.name.function.kette",
-					"match": ":"
+					"name": "entity.name.function.start.kette",
+					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,):"
 				},
 				{
-					"name": "entity.name.function.kette",
-					"match": ";"
+					"name": "entity.name.function.end.kette",
+					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,);"
+				},
+				{
+					"name": "keyword.operator.dump.kette",
+					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,)\\."
 				}
 			]
 		},

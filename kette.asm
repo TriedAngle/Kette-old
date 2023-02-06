@@ -161,7 +161,7 @@ entry $
     push    rdi ; len proc mem | r15 - 56
     push    r12 ; off proc mem | r15 - 64
     ; allocate memory for includes
-    mov     rdi, PAGE1_BYTES
+    mov     rdi, PAGE2_BYTES
     call    map_memory
     push    rax ; ptr incl mem | r15 - 72
     push    rdi ; len incl mem | r15 - 80
@@ -2916,7 +2916,6 @@ create_assembly:
             add     r12, ASM_SYS6_LEN
             jmp     .assembly_next
 
-        
         .assembly_next:
         ; - BUFFER ASSEMBLY GROW -
         mov     rax, [r14 - 8] ; current max
@@ -2934,14 +2933,13 @@ create_assembly:
         mul     rcx
         mov     rdx, rax
         call    remap_memory
-        mov     [14 - 0], rax
-        mov     [14 - 8], rdx
+        mov     [r14 - 0], rax
+        mov     [r14 - 8], rdx
         .not_grow_assembly_buffer:
         add     rbx, 48
         jmp     .assembly
     
     .assembly_end:
-
     mov     r10, [r14]
     lea     rdi, [r10 + r12]
     mov     rsi, ASM_ENDING
@@ -2990,18 +2988,20 @@ assembly_add_string_constants:
     mov     r13, [r15] ; strings
 
     xor     rbx, rbx
+
     .assembly_strings:
         cmp     rbx, qword [r15 - 16]
         jz      .assembly_strings_end
         cmp     byte [r13 + rbx + 24], varStringIgnore
         jz      .assembly_strings_next
         
+        mov     r10, [r14]
         lea     rdi, [r10 + r12]
         mov     rsi, ASM_CONST_STR
         mov     rdx, ASM_CONST_STR_LEN
         call    mem_move
         add     r12, ASM_CONST_STR_LEN
-    
+        
         lea     rsi, [rsp]
         sub     rsp, 20
         mov     rdi, [r13 + rbx]
@@ -3081,12 +3081,13 @@ assembly_add_string_constants:
         add     r12, ASM_STR_LEN_END_LEN
 
         .assembly_strings_next:
+        
         ; - BUFFER ASSEMBLY GROW -
         mov     rax, [r14 - 8] ; current max
         mov     rcx, GROW_SIZE ; divisor
         xor     rdx, rdx ; rest
         div     rcx ; rax => 50% of current
-        cmp     r12, rax 
+        cmp     r12, rax
         jg      .grow_assembly_buffer
         jmp     .not_grow_assembly_buffer
         .grow_assembly_buffer:
@@ -3097,10 +3098,11 @@ assembly_add_string_constants:
         mul     rcx
         mov     rdx, rax
         call    remap_memory
-        mov     [14 - 0], rax
-        mov     [14 - 8], rdx
+        mov     [r14 - 0], rax
+        mov     [r14 - 8], rdx
+        
         .not_grow_assembly_buffer:
-
+        
         add     rbx, 32
         jmp     .assembly_strings
 
