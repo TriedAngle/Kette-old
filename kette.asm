@@ -100,9 +100,22 @@ entry $
     add     rax, 8
     mov     [arg_ptr], rax
 
+    mov     rdi, proc_path
+    mov     rsi, rel_path_kette
+    mov     rdx, rel_path_kette_len
+    mov     rax, SYS_READLINK
+    syscall
+
+    mov     rdi, rel_path_kette
+    mov     rsi, rax
+    call    get_file_path
+    mov     rsi, rax
+    
+    mov     [rel_path_kette_len], rsi
+    
     mov     r12, [arg_count]
     mov     r12, [r12]
-    
+
     cmp     r12, 1
     jz      error_no_file_given
 
@@ -189,11 +202,31 @@ entry $
     mov     rdi, [arg_ptr]
     mov     rdi, [rdi + 8]
     call    strlen ; rax = len, rdi = ptr
+    mov     rsi, rax
+    call    get_file_path
+    cmp     rax, 0
+    jz      .main_path_zero
+    jmp     .main_path_not_zero
+    .main_path_zero:
+        mov     rdi, rdi
+        mov     rsi, rsi
+        mov     rax, rel_path_empty
+        mov     [rel_path_main], rax
+        mov     rax, rel_path_empty_len
+        mov     [rel_path_main_len], rax
+        jmp     .main_path_decided
+    .main_path_not_zero:
+        mov     rcx, rdi
+        lea     rdi, [rdi + rax]
+        sub     rsi, rax
+        mov     [rel_path_main], rcx
+        mov     [rel_path_main_len], rax
+    .main_path_decided:
 
     mov     r12, [r15 - 72]
     mov     qword [r12 +  0], 0
     mov     [r12 +  8], rdi
-    mov     [r12 + 16], rax
+    mov     [r12 + 16], rsi
     mov     qword [r15 - 88], 24
     mov     qword [r15 - 96], 0
 
@@ -408,19 +441,88 @@ tokenize_file:
     mov     r12, [rdi + 8] ; ptr
     mov     r13, [rdi + 16] ; len
 
-    ; - null terminated ... -
-    mov     rbx, r13
-    inc     rbx
-    sub     rsp, rbx
+    mov     rdi, [rdi + 8]
+    mov     rsi, [rdi + 16]
+    call    is_std?
+    cmp     rax, 0
+    jz      .handle_normal
+    .handle_std:
+        mov     rdi, rel_path_kette
+        mov     rsi, [rel_path_kette_len]
+        mov     r12, rdi
+        mov     r13, rsi
+        jmp     .handled_std
+    .handle_normal:
+        mov     rdi, [rel_path_main]
+        mov     rsi, [rel_path_main_len]
+        mov     r12, rdi
+        mov     r13, rsi
+    .handled_std:
+    dec     rsp         ; null term
+    sub     rsp, r13    ; len
     mov     rdi, rsp
     mov     rsi, r12
-    mov     rdx, rbx
+    mov     rdx, r13
     call    mem_move
     mov     byte [rsp + r13], 0
+    
     mov     rdi, rsp
-    call    open_file
-    push    r8
-    add     rsp, rbx
+    mov     rsi, O_RDONLY
+    mov     rax, SYS_OPEN
+    syscall
+    mov     r14, rax    ; file path descriptor
+    inc     rsp         ; null term
+    add     rsp, r13    ; len
+
+    mov     rdi, [r15 - 72] ; include ptr
+    mov     rdx, [r15 - 96] ; include current
+    lea     rdi, [rdi + rdx]
+    mov     r12, [rdi + 8] ; ptr
+    mov     r13, [rdi + 16] ; len
+
+    dec     rsp         ; null term
+    sub     rsp, r13    ; len
+    mov     rdi, rsp
+    mov     rsi, r12
+    mov     rdx, r13
+    call    mem_move
+    mov     byte [rsp + r13], 0
+
+    mov     rdi, r14
+    mov     rsi, rsp
+    mov     rdx, O_RDONLY
+    mov     rax, SYS_OPENAT
+    syscall
+    inc     rsp         ; null term
+    add     rsp, r13    ; len
+    mov     r13, rax    ; file path descriptor
+
+    ; close directory
+    mov     rdi, r14 
+    mov     rax, SYS_CLOSE
+    syscall
+
+    mov     rdi, r13 
+    mov     rsi, 0
+    mov     rdx, SEEK_END
+    mov     rax, SYS_LSEEK
+    syscall
+
+    push    rax ; len
+    
+    xor     rdi, rdi
+    mov     rsi, rax
+    mov     rdx, PROT_READ
+    mov     r10, MAP_PRIVATE 
+    xor     r9 , r9
+    mov     r8, r13 ; fd
+    mov     rax, SYS_MMAP
+    syscall ; rax = ptr file buffer
+    
+    pop     rdx ; len    
+    
+    push    r13
+
     mov     r14, rsp
     push    rax ; file string | - 8
     push    rdx ; file len | - 16
@@ -1036,6 +1138,7 @@ tokenize_file:
     pop     rdi
     pop     rsi
     call    unmap_memory
+
     pop     rdi
     mov     rax, SYS_CLOSE
     syscall
@@ -3353,6 +3456,57 @@ append_ktt_if_necessary:
     .append_ktt_end:
     mov     rsi, r10
     ret
+
+; input:
+;   rdi: ptr string
+;   rsi: len string
+get_file_path:
+    push    rbp
+    mov     rbp, rsp
+
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
+
+    mov     r12, rdi
+    mov     r13, rsi
+    xor     r14, r14 
+    xor     rbx, rsi
+    dec     rbx ; reverse offset
+    .find_slash:
+        cmp     rbx, -1
+        jz      .find_slash_end
+
+        cmp     byte [r12 + rbx], "/"
+        jz      .found_slash
+
+        dec     rbx
+        inc     r14
+        jmp     .find_slash
+    .find_slash_end:
+
+    jmp     .no_slash
+    .found_slash:
+        mov     rax, r13
+        sub     rax, r14
+        jmp     .proc_end
+    .no_slash:
+        mov     rax, 0
+
+    .proc_end:
+
+    pop     r15
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
+
+    mov     rsp, rbp
+    pop     rbp  
+    ret
+
 ; input
 ;   rdi: hexfile index
 hexdump_file:
@@ -3886,11 +4040,24 @@ error_illegal:
     syscall
 
 segment readable writable
-    arg_count rq 1
-    arg_ptr rq 1
-    hexdump db 0
+    hexdump     db  0
+    arg_count   rq  1
+    arg_ptr     rq  1
+    
+    rel_path_kette      rb  4096 ; max size
+    rel_path_kette_len  rq  1
+
+    rel_path_main       rq  1
+    rel_path_main_len   rq  1
 
 segment readable
+
+rel_path_empty      db  "./"
+rel_path_empty_len  =   $ - rel_path_empty
+
+proc_path      db  "/proc/self/exe", 0
+proc_path_len  =   $ - proc_path
+
 
 ; ERRORS
 err0        db  "File not found"

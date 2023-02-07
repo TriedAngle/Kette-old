@@ -1,4 +1,5 @@
-use: "examples/hello.ktt"
+use: "std/io.ktt"
+use: "hello.ktt"
 
 var: fibo 8
 

@@ -8,15 +8,3 @@
 ;
 
 : when ( b f -- ) swap if then call else drop end ;
-
-: SysWrite  1 ;
-
-: StdOut    1 ;
-
-: file-write ( len ptr fd -- ) SysWrite syscall3 drop ;
-
-: print-string ( len ptr -- ) StdOut file-write ;
-
-: print-newline ( -- ) 10 1 8 stackptr print-string drop ;
-
-: println ( len ptr -- ) print-string print-newline ;
