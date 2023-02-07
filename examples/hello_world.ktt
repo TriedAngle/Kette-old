@@ -1,5 +1,7 @@
 use: "std/io"
-use: "std/emoji/io"
+
+use: "std/😂/🐱‍💻"
 
 "Hello World" println
-"Hello Emoji😂" 📋🗣️
+
+33 5 + 🔢🗣️

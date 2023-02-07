@@ -2,4 +2,4 @@ use: "std/io"
 
 : 🔢🗣️ ( n -- ) . ;
 
-: 📋🗣️ ( len ptr -- ) println ;
+// : 📋🗣️ ( len ptr -- ) println ;

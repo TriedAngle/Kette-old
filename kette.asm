@@ -441,6 +441,13 @@ tokenize_file:
     mov     r12, [rdi + 8] ; ptr
     mov     r13, [rdi + 16] ; len
 
+    ; push    rdi
+    ; mov     rdi, r12
+    ; mov     rsi, r13
+    ; call    print_string
+    ; call    print_string
+    ; pop     rdi
+
     mov     rdi, [rdi + 8]
     mov     rsi, [rdi + 16]
     call    is_std?
