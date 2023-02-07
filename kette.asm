@@ -459,12 +459,12 @@ tokenize_file:
         mov     r13, rsi
     .handled_std:
     dec     rsp         ; null term
+    mov     byte [rsp], 0
     sub     rsp, r13    ; len
     mov     rdi, rsp
     mov     rsi, r12
     mov     rdx, r13
     call    mem_move
-    mov     byte [rsp + r13], 0
     
     mov     rdi, rsp
     mov     rsi, O_RDONLY
@@ -480,21 +480,33 @@ tokenize_file:
     mov     r12, [rdi + 8] ; ptr
     mov     r13, [rdi + 16] ; len
 
+    mov     r10, rsp
     dec     rsp         ; null term
+    mov     byte [rsp], 0
+    mov     rdi, r12
+    mov     rsi, r13
+    call    ends_with_ktt?
+    cmp     rax, 1
+    jz      .has_ktt
+    .add_ktt:
+    sub     rsp, KTT_ENDING_LEN
+    mov     rdi, rsp
+    mov     rsi, KTT_ENDING
+    mov     rdx, KTT_ENDING_LEN
+    call    mem_move
+    .has_ktt:
     sub     rsp, r13    ; len
     mov     rdi, rsp
     mov     rsi, r12
     mov     rdx, r13
     call    mem_move
-    mov     byte [rsp + r13], 0
 
     mov     rdi, r14
     mov     rsi, rsp
     mov     rdx, O_RDONLY
     mov     rax, SYS_OPENAT
     syscall
-    inc     rsp         ; null term
-    add     rsp, r13    ; len
+    mov     rsp, r10
     mov     r13, rax    ; file path descriptor
 
     ; close directory
@@ -3417,6 +3429,28 @@ is_std?:
     ret
 
     .is_not_std:
+    mov     rax, 0
+    ret
+
+; checks if ends with .ktt
+; input
+;   rdi: ptr
+;   rsi: len (not really required but useful for safety)
+ends_with_ktt?:
+    cmp     rsi, KTT_ENDING_LEN ; shorter => 100% no ktt ending
+    jle     .ends_not_with_ktt
+
+    ; index of potential .ktt
+    push    rdi
+    add     rdi, rsi
+    sub     rdi, KTT_ENDING_LEN
+    mov     rsi, KTT_ENDING
+    mov     rdx, KTT_ENDING_LEN
+    call    mem_cmp
+    pop     rdi
+    ret
+
+    .ends_not_with_ktt:
     mov     rax, 0
     ret
 
