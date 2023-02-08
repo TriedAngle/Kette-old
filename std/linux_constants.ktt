@@ -1,0 +1,28 @@
+: SysRead       0   ;
+: SysWrite      1   ;
+: SysOpen       2   ;
+: SysClose      3   ;
+: SysLSeek      8   ;
+: SysMMap       9   ;
+: SysMunMap     11  ;
+
+
+: OpRead        0   ;
+: OpWrite       1   ;
+: OpCreate      64  ;
+: OpTrunctuate  512 ;
+
+: ProtNone      0   ;
+: ProtRead      1   ;
+: ProtWrite     2   ;
+
+: MapFile       0   ;
+: MapPrivate    2   ;
+
+: SeekSet       0   ;
+: SeekCurrent   1   ;
+: SeekEnd       2   ;
+
+: StdIn         0   ;
+: StdOut        1   ;
+: StdErr        2   ;

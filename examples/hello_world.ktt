@@ -1,3 +1,5 @@
+use: "hello"
+
 use: "std/io"
 
 use: "std/😂/🐱‍💻"

@@ -321,7 +321,6 @@ entry $
         add     qword [r15 - 96], 24
         jmp     .tokenize_all
     .tokenize_all_end:
-
     ; TODO: investigate why rdi doens't work
     .hexdump_pass_0:
     cmp     [hexdump], 0
@@ -3922,6 +3921,12 @@ strlen:
     .strlen_end:
         ret
 
+
+; input:
+;   rdi: data
+;   rsi: token_id
+;   rdx: error_id
+error:
 
 ; ERRORS
 error_file_not_found:

@@ -1,11 +1,55 @@
-: SysWrite  1 ;
 
-: StdOut    1 ;
+use: "std/linux_constants"
 
 : file-write ( len ptr fd -- ) SysWrite syscall3 drop ;
+
+: file-descriptor ( mode flags ptr -- fd ) SysOpen syscall3 ;
+
+: file-length ( fd -- len ) SeekEnd 0 rot SysLSeek syscall3 ;
+
+: file-memory-map ( fd len -- ptr )
+    0 rot rot
+    MapPrivate swap
+    ProtRead swap
+    0 SysMMap
+    syscall6
+;
+
+: file-memory-unmap ( len ptr -- )
+    SysMunMap
+    syscall2 drop
+;
+
+: file-open ( len ptr flags -- fd len ptr )
+    0 2swap
+    swap drop
+    rot swap
+    file-descriptor
+    dup file-length
+    2dup file-memory-map
+;
+
+: file-close ( fd len ptr -- )
+    file-memory-unmap
+    SysClose syscall1
+;
+
+
+: with-file ( len ptr flags fp -- )
+    var: tmp-with-file-ptr 8
+    tmp-with-file-ptr set // fp
+    file-open // fd len ptr 
+    2dup 
+    tmp-with-file-ptr get call
+    2drop
+    file-close
+;
+
+// printing
 
 : print-string ( len ptr -- ) StdOut file-write ;
 
 : print-newline ( -- ) 10 1 8 stackptr print-string drop ;
 
 : println ( len ptr -- ) print-string print-newline ;
+
