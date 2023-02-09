@@ -78,6 +78,8 @@ tkSet2      = 55
 tkSet4      = 56
 tkSet       = 57
 tkVar       = 58
+tkArgC      = 59
+tkArgV      = 60
 
 tkExit      = 255
 
@@ -954,6 +956,22 @@ tokenize_file:
         call    mem_cmp
         cmp     rax, 1
         mov     rcx, tkVar
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_ARGC]
+        mov     rdx, KEY_ARGC_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkArgC
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_ARGV]
+        mov     rdx, KEY_ARGV_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkArgV
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -1964,9 +1982,14 @@ create_assembly:
         cmp     BYTE [r13 + rbx], tkPushStr
         jz      .output_push_string
 
+        cmp     BYTE [r13 + rbx], tkArgC
+        jz      .output_argc
+
+        cmp     BYTE [r13 + rbx], tkArgV
+        jz      .output_argv
+
         cmp     BYTE [r13 + rbx], tkNoOp
         jz      .assembly_next ; skip no ops
-
 
         jmp     .assembly_next
         .output_push_int:
@@ -3035,6 +3058,24 @@ create_assembly:
             mov     rdx, ASM_SYS6_LEN
             call    mem_move
             add     r12, ASM_SYS6_LEN
+            jmp     .assembly_next
+
+        .output_argc:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ARGC
+            mov     rdx, ASM_ARGC_LEN
+            call    mem_move
+            add     r12, ASM_ARGC_LEN
+            jmp     .assembly_next
+
+        .output_argv:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_ARGV
+            mov     rdx, ASM_ARGV_LEN
+            call    mem_move
+            add     r12, ASM_ARGV_LEN
             jmp     .assembly_next
 
         .assembly_next:
@@ -4245,6 +4286,12 @@ KEY_SET_LEN     =   $ - KEY_SET
 KEY_VAR         db  "var:"
 KEY_VAR_LEN     =   $ - KEY_VAR
 
+KEY_ARGC        db  "argc"
+KEY_ARGC_LEN    =   $ - KEY_ARGC
+
+KEY_ARGV        db  "argv"
+KEY_ARGV_LEN    =   $ - KEY_ARGV
+
 KEY_SYS0        db  "syscall0"
 KEY_SYS0_LEN    =   $ - KEY_SYS0
 
@@ -4476,6 +4523,12 @@ ASM_SYS5_LEN    =   $ - ASM_SYS5
 
 ASM_SYS6        db  "; -- SYSCALL6 --", 10, "pop rax", 10, "pop rdi", 10, "pop rsi", 10, "pop rdx", 10, "pop r10",10, "pop r8", 10, "pop r9", 10, "syscall", 10, "push rax", 10
 ASM_SYS6_LEN    =   $ - ASM_SYS6
+
+ASM_ARGC        db  "; -- ARGC --", 10, "mov rax, [ARGS_COUNT]", 10, "mov rax, [rax]", 10, "push rax", 10
+ASM_ARGC_LEN    =   $ - ASM_ARGC
+
+ASM_ARGV        db  "; -- ARGV --", 10, "mov rax, [ARGS_PTR]", 10, "push rax", 10
+ASM_ARGV_LEN    =   $ - ASM_ARGV
 
 ASM_PUSH_STR_L      db  "; -- PUSH STRING --", 10
 ASM_PUSH_STR_L_LEN  =   $ - ASM_PUSH_STR_L

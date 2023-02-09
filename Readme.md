@@ -20,7 +20,7 @@ before selfhosting
 - [x] comments (`//` single line `/*` and `*/` multiline)
 - [ ] single error handling | multi error handling will be added in self host
 - [x] command line arguments
-- [ ] command line arguments code | code in place, needs accessibility
+- [x] command line arguments code | code in place, needs accessibility
 - [x] ptr
 - [x] mutable globals
 - [x] syntax highlighting | (VSC)

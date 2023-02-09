@@ -39,7 +39,7 @@ use: "std/linux_constants"
     var: tmp-with-file-ptr 8
     tmp-with-file-ptr set // fp
     file-open // fd len ptr 
-    2dup 
+    2dup
     tmp-with-file-ptr get call
     2drop
     file-close
