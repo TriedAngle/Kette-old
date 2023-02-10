@@ -23,63 +23,64 @@ tkGEqual    = 10
 tkLEqual    = 11
 tkAnd       = 12
 tkOr        = 13
+tkNot       = 14
 
-tkPushInt   = 14
-tkDump      = 15
-tkDup       = 16
-tkSwap      = 17
-tkRot       = 18
-tkOver      = 19
-tkDrop      = 20
+tkPushInt   = 15
+tkDump      = 16
+tkDup       = 17
+tkSwap      = 18
+tkRot       = 19
+tkOver      = 20
+tkDrop      = 21
 
-tk2Dup      = 21
-tk2Swap     = 22
-tk2Over     = 23
-tk2Drop     = 24
+tk2Dup      = 22
+tk2Swap     = 23
+tk2Over     = 24
+tk2Drop     = 25
 
-tkIf        = 25
-tkThen      = 26
-tkElse      = 27
-tkElif      = 28
-tkWhile     = 29
-tkDo        = 30
-tkProc      = 31
-tkStackEff  = 32
-tkEnd       = 33
+tkIf        = 26
+tkThen      = 27
+tkElse      = 28
+tkElif      = 29
+tkWhile     = 30
+tkDo        = 31
+tkProc      = 32
+tkStackEff  = 33
+tkEnd       = 34
 
-tkIdent     = 34
-tkPushStr   = 35
+tkIdent     = 35
+tkPushStr   = 36
 
-tkSys0      = 36
-tkSys1      = 37
-tkSys2      = 38
-tkSys3      = 39
-tkSys4      = 40
-tkSys5      = 41
-tkSys6      = 42
+tkSys0      = 37
+tkSys1      = 38
+tkSys2      = 39
+tkSys3      = 40
+tkSys4      = 41
+tkSys5      = 42
+tkSys6      = 43
 
-tkBitAnd    = 43
-tkBitOr     = 44
+tkBitAnd    = 44
+tkBitOr     = 45
 
-tkUse       = 45
+tkUse       = 46
 
-tkAnOpen    = 46
-tkAnClose   = 47
-tkCall      = 48
+tkAnOpen    = 47
+tkAnClose   = 48
+tkCall      = 49
 
-tkStackPtr  = 49
+tkStackPtr  = 50
 
-tkGet1      = 50
-tkGet2      = 51
-tkGet4      = 52
-tkGet       = 53
-tkSet1      = 54
-tkSet2      = 55
-tkSet4      = 56
-tkSet       = 57
-tkVar       = 58
-tkArgC      = 59
-tkArgV      = 60
+tkGet1      = 51
+tkGet2      = 52
+tkGet4      = 53
+tkGet       = 54
+tkSet1      = 55
+tkSet2      = 56
+tkSet4      = 57
+tkSet       = 58
+tkVar       = 59
+tkArgC      = 60
+tkArgV      = 61
 
 tkExit      = 255
 
@@ -805,7 +806,15 @@ tokenize_file:
         cmp     rax, 1
         mov     rcx, tkOr
         jz      .finalize_keyword_simple
-        
+
+        mov     rdi, r12
+        lea     rsi, [KEY_NOT]
+        mov     rdx, KEY_NOT_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkNot
+        jz      .finalize_keyword_simple
+               
         mov     rdi, r12
         lea     rsi, [KEY_IF]
         mov     rdx, KEY_IF_LEN
@@ -1871,6 +1880,9 @@ create_assembly:
         cmp     BYTE [r13 + rbx], tkOr
         jz      .output_or
 
+        cmp     BYTE [r13 + rbx], tkNot
+        jz      .output_not
+
         cmp     BYTE [r13 + rbx], tkDump
         jz      .output_dump
 
@@ -2212,6 +2224,14 @@ create_assembly:
             add     r12, ASM_OR_LEN
             jmp     .assembly_next
 
+        .output_not:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_NOT
+            mov     rdx, ASM_NOT_LEN
+            call    mem_move
+            add     r12, ASM_NOT_LEN
+            jmp     .assembly_next
 
         .output_dump:
             mov     r10, [r14]
@@ -4313,6 +4333,8 @@ KEY_SYS5_LEN    =   $ - KEY_SYS5
 KEY_SYS6        db  "syscall6"
 KEY_SYS6_LEN    =   $ - KEY_SYS6
 
+KEY_NOT         db  "not"
+KEY_NOT_LEN     =   $ - KEY_NOT
 
 ; ASSEMBLY OUTPUT
 ASM_PUSH        db  "; -- PUSH --", 10, "push " ; insert number here
@@ -4355,7 +4377,6 @@ ASM_LEQUAL_LEN  =   $ - ASM_LEQUAL
 ASM_BIT_AND     db  "; -- BIT AND --", 10, "pop rbx", 10, "pop rax", 10, "and rax, rbx", 10, "push rax", 10
 ASM_BIT_AND_LEN =   $ - ASM_BIT_AND
 
-
 ASM_BIT_OR      db  "; -- BIT OR --", 10, "pop rbx", 10, "pop rax", 10, "or rax, rbx", 10, "push rbx", 10
 ASM_BIT_OR_LEN  =   $ - ASM_BIT_OR
 
@@ -4365,6 +4386,8 @@ ASM_AND_LEN     =   $ - ASM_AND
 ASM_OR          db  "; -- OR --", 10, "pop rbx", 10, "pop rax", 10, "mov rcx, 1", 10, "mov rdx, 0", 10, "or rax, rbx", 10, "cmp rax, 0", 10, "cmovnz, rdx, rdx", 10, "push rdx", 10
 ASM_OR_LEN      =   $ - ASM_OR
 
+ASM_NOT         db  "; -- NOT --", 10, "pop rax", 10, "mov rdx, 0", 10, "mov rdi, 1", 10, "cmp rax, 0", 10, "cmovz rdx, rdi", 10, "push rdx", 10
+ASM_NOT_LEN     =   $ - ASM_NOT
 
 ASM_DUMP        db  "; -- DUMP --", 10, "pop rdi", 10, "call dump_uint", 10
 ASM_DUMP_LEN    =   $ - ASM_DUMP

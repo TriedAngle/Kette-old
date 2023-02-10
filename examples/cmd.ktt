@@ -1,4 +1,6 @@
 use: "std/io"
 
 argc . 
-5 argv 8 + get println
+5 argv 8 + get strlen
+
+1 . 1 not .
