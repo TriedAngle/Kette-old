@@ -1,0 +1,9 @@
+
+: strlen ( str -- len )
+    0 swap
+    while dup get1 0 = not do
+        swap 1 + swap
+        1 +
+    end
+    drop
+;

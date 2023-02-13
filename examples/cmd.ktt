@@ -1,6 +1,7 @@
 use: "std/io"
+use: "std/string"
 
-argc . 
-5 argv 8 + get strlen
+// argc . 
+argv 8 + get strlen .
 
-1 . 1 not .
+// 1 . 1 not .
