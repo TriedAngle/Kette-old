@@ -1,0 +1,65 @@
+: nip ( x y -- y ) swap drop ;
+
+: dip ( x fp -- x ) 
+  swap returnpush call returnpop
+;
+
+: 2dip ( x y fp -- x y ) 
+  swap [ dip ] dip
+;
+
+: 3dip ( x y z fp -- x y z ) 
+  swap [ 2dip ] dip
+;
+
+: 4dip ( x y z w fp -- x y z ) 
+  swap [ 3dip ] dip
+;
+
+: keep ( x fp -- x ) 
+  over returnpush call returnpop
+;
+
+: when ( b fp -- ) 
+  swap if then call else drop end 
+;
+
+: unless ( b fp -- ) 
+  swap if then drop else call end 
+;
+
+: choice ( b fpT fpF -- ) 
+  rot if then drop call else swap drop call end 
+;
+
+: when* ( b fp -- b ) 
+  over returnpush swap if then call returnpop else drop returnpop drop end 
+;
+
+: bi ( x fp1 fp2 -- )
+  [ keep ] dip call
+;
+
+: 2bi ( x y z w fp1 fp2 -- )
+  [ keep ] dip call
+;
+
+: tri ( x fp1 fp2 fp3 -- )
+  [ [ keep ] dip keep ] dip call
+;
+
+: bi* ( x y fp1 fp2 -- )
+  [ dip ] dip call
+;
+
+: 2bi* ( x y fp1 fp2 -- )
+  [ 2dip ] dip call
+;
+
+: tri* ( x y z fp1 fp2 fp3 -- )
+  [ [ 2dip ] dip dip ] dip call
+;
+
+: 2tri* ( x y z w v u fp1 fp2 fp3 -- )
+  [ 4dip ] 2dip 2bi*
+;

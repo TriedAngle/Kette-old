@@ -36,11 +36,10 @@ use: "std/linux_constants"
 
 
 : with-file ( len ptr flags fp -- )
-    var: tmp-with-file-ptr 8
-    tmp-with-file-ptr set // fp
+    returnpush // fp
     file-open // fd len ptr 
     2dup
-    tmp-with-file-ptr get call
+    returnpop call
     2drop
     file-close
 ;

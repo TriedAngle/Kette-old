@@ -26,7 +26,7 @@
 			"patterns": [
 				{
 					"name": "keyword.control.kette",
-					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,)(if|then|elif|else|while|do|end|set|set1|set2|set4|get|get1|get2|get4)"
+					"match": "(?xi)\n(?<=^|\\s|\\(|,@|,\\.|,)(if|then|elif|else|while|do|end|set1|set2|set4|set|get1|get2|get4|get)"
 				},
 				{
 					"name": "variable.language.kette",

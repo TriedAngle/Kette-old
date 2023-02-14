@@ -82,6 +82,9 @@ tkVar       = 59
 tkArgC      = 60
 tkArgV      = 61
 
+tkReturnStackPush   = 62
+tkReturnStackPop    = 63
+
 tkExit      = 255
 
 
@@ -893,6 +896,22 @@ tokenize_file:
         call    mem_cmp
         cmp     rax, 1
         mov     rcx, tkStackPtr
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_RETURN_STACK_PUSH]
+        mov     rdx, KEY_RETURN_STACK_PUSH_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkReturnStackPush
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_RETURN_STACK_POP]
+        mov     rdx, KEY_RETURN_STACK_POP_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkReturnStackPop
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -1949,6 +1968,11 @@ create_assembly:
         cmp     BYTE [r13 + rbx], tkStackPtr
         jz      .output_stackptr
 
+        cmp     BYTE [r13 + rbx], tkReturnStackPush
+        jz      .output_return_stack_push
+        cmp     BYTE [r13 + rbx], tkReturnStackPop
+        jz      .output_return_stack_pop
+
         cmp     BYTE [r13 + rbx], tkGet1
         jz      .output_get1
         cmp     BYTE [r13 + rbx], tkGet2
@@ -2945,6 +2969,24 @@ create_assembly:
             add     r12, ASM_STACKPTR_LEN
             jmp     .assembly_next
 
+        .output_return_stack_push:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_RETURN_STACK_PUSH
+            mov     rdx, ASM_RETURN_STACK_PUSH_LEN
+            call    mem_move
+            add     r12, ASM_RETURN_STACK_PUSH_LEN
+            jmp     .assembly_next    
+            
+        .output_return_stack_pop:
+            mov     r10, [r14]
+            lea     rdi, [r10 + r12]
+            mov     rsi, ASM_RETURN_STACK_POP
+            mov     rdx, ASM_RETURN_STACK_POP_LEN
+            call    mem_move
+            add     r12, ASM_RETURN_STACK_POP_LEN
+            jmp     .assembly_next
+        
         .output_get1:
             mov     r10, [r14]
             lea     rdi, [r10 + r12]
@@ -4276,6 +4318,12 @@ KEY_USE_LEN     =   $ - KEY_USE
 KEY_CALL        db  "call"
 KEY_CALL_LEN    =   $ - KEY_CALL
 
+KEY_RETURN_STACK_PUSH       db  "returnpush"
+KEY_RETURN_STACK_PUSH_LEN   =   $ - KEY_RETURN_STACK_PUSH
+
+KEY_RETURN_STACK_POP        db  "returnpop"
+KEY_RETURN_STACK_POP_LEN    =   $ - KEY_RETURN_STACK_POP
+
 KEY_STACKPTR    db  "stackptr"
 KEY_STACKPTR_LEN=   $ - KEY_STACKPTR
 
@@ -4494,6 +4542,12 @@ ASM_CALL_LEN        =   $ -  ASM_CALL
 
 ASM_STACKPTR        db  "; -- STACKPTR --", 10, "pop rax", 10, "lea rax, [rsp + rax]", 10, "push rax", 10
 ASM_STACKPTR_LEN    =   $ - ASM_STACKPTR
+
+ASM_RETURN_STACK_PUSH       db  "; -- RETURN STACK PUSH --", 10, "pop rcx", 10, "mov rax, [RETURN_STACK_PTR]", 10, "sub rax, 8", 10, "mov [RETURN_STACK_PTR], rax", 10, "mov [rax], rcx", 10
+ASM_RETURN_STACK_PUSH_LEN   =   $ - ASM_RETURN_STACK_PUSH
+
+ASM_RETURN_STACK_POP        db  "; -- RETURN STACK POP --", 10, "mov rax, [RETURN_STACK_PTR]", 10, "mov rcx, [rax]", 10, "add rax, 8", 10, "mov [RETURN_STACK_PTR], rax", 10, "push rcx", 10
+ASM_RETURN_STACK_POP_LEN    =   $ - ASM_RETURN_STACK_POP
 
 ASM_GET1            db  "; -- GET 1 BYTE --", 10, "pop rax", 10, "xor rdx, rdx", 10, "mov dl, byte [rax]", 10, "push rdx"
 ASM_GET1_LEN        =   $ - ASM_GET1

@@ -3,3 +3,27 @@ is a multiline
 file that can be read from :D
 
 lollll
+
+mov rdi, [RETURN_STACK_PTR]
+call dump_uint
+mov rax, [RETURN_STACK_PTR]
+sub rax, 16
+mov [RETURN_STACK_PTR], rax
+
+mov rcx, 69
+mov [rax + 8], rcx
+mov rcx, 70
+mov [rax], rcx
+
+mov rax, [RETURN_STACK_PTR]
+mov rdi, [rax + 8]
+call dump_uint
+mov rax, [RETURN_STACK_PTR]
+mov rdi, [rax]
+call dump_uint
+
+mov rax, [RETURN_STACK_PTR]
+add rax, 16
+mov [RETURN_STACK_PTR], rax
+mov rdi, [RETURN_STACK_PTR]
+call dump_uint
