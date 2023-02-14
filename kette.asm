@@ -1,6 +1,6 @@
 format ELF64 executable 3
 
-include "linux.inc"
+include "linux.asm"
 
 GROW_SIZE = 2
 PAGE1_BYTES = 4096
