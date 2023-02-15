@@ -1,5 +1,7 @@
 : nip ( x y -- y ) swap drop ;
 
+: 2nip ( x y z -- z ) swap drop swap drop ;
+
 : dip ( x fp -- x ) 
   swap returnpush call returnpop
 ;
@@ -18,6 +20,14 @@
 
 : keep ( x fp -- x ) 
   over returnpush call returnpop
+;
+
+: 2keep ( x y fp -- x y ) 
+  [ 2dup ] dip 2dip
+;
+
+: pick ( x y z -- x y z x)
+  stackptr 16 + get
 ;
 
 : when ( b fp -- ) 
@@ -48,6 +58,10 @@
   [ [ keep ] dip keep ] dip call
 ;
 
+: 2tri ( x y fp1 fp2 fp3 -- )
+  [ [ 2keep ] dip 2keep ] dip call
+;
+
 : bi* ( x y fp1 fp2 -- )
   [ dip ] dip call
 ;
@@ -62,4 +76,20 @@
 
 : 2tri* ( x y z w v u fp1 fp2 fp3 -- )
   [ 4dip ] 2dip 2bi*
+;
+
+: bi@ ( x y fp -- )
+  dup bi*
+;
+
+: 2bi@ ( x y z w fp -- )
+  dup 2bi*
+;
+
+: tri@ ( x y z fp -- )
+  dup dup tri*
+;
+
+: 2tri@ ( x y z w v u fp )
+  dup dup 2tri*
 ;

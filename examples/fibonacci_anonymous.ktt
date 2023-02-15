@@ -1,7 +1,9 @@
-: when /*( bool fp -- )*/ in swap if then call else drop end ;
+use: "std/core"
 
-: fib in
-  dup 1 > [ 1 - dup 1 - fib swap fib + ] when
+: fib ( n -- n' )
+  dup 1 > [
+    [ 1 - fib ] [ 2 - fib ] bi + 
+  ] when
 ;
 
-42 fib .
+40 fib .
