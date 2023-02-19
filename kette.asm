@@ -614,14 +614,6 @@ tokenize_file:
         mov     rax, tkLesser
         cmp     BYTE [r12], "<"
         cmovz   rcx, rax
-       
-        mov     rax, tkBitAnd
-        cmp     BYTE [r12], "&"
-        cmovz   rcx, rax
-
-        mov     rax, tkBitOr
-        cmp     BYTE [r12], "|"
-        cmovz   rcx, rax
 
         mov     rax, tkProc
         cmp     BYTE [r12], ":"
@@ -808,6 +800,22 @@ tokenize_file:
         call    mem_cmp
         cmp     rax, 1
         mov     rcx, tkOr
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_BIT_AND]
+        mov     rdx, KEY_BIT_AND_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkBitAnd
+        jz      .finalize_keyword_simple
+
+        mov     rdi, r12
+        lea     rsi, [KEY_BIT_OR]
+        mov     rdx, KEY_BIT_OR_LEN
+        call    mem_cmp
+        cmp     rax, 1
+        mov     rcx, tkBitOr
         jz      .finalize_keyword_simple
 
         mov     rdi, r12
@@ -4291,6 +4299,12 @@ KEY_AND_LEN     =   $ - KEY_AND
 KEY_OR          db  "or"
 KEY_OR_LEN      =   $ - KEY_OR
 
+KEY_BIT_AND     db  "bitand"
+KEY_BIT_AND_LEN =   $ - KEY_BIT_AND
+
+KEY_BIT_OR      db  "bitor"
+KEY_BIT_OR_LEN  =   $ - KEY_BIT_OR
+
 KEY_IF          db  "if"
 KEY_IF_LEN      =   $ - KEY_IF
 
@@ -4422,10 +4436,10 @@ ASM_GEQUAL_LEN  =   $ - ASM_GEQUAL
 ASM_LEQUAL      db  "; -- LESSER EQUAL --", 10, "pop rbx", 10, "pop rax", 10, "xor rcx, rcx", 10, "cmp rax, rbx", 10, "mov rdx, 1", 10,"cmovle rcx, rdx", 10, "push rcx", 10
 ASM_LEQUAL_LEN  =   $ - ASM_LEQUAL
 
-ASM_BIT_AND     db  "; -- BIT AND --", 10, "pop rbx", 10, "pop rax", 10, "and rax, rbx", 10, "push rax", 10
+ASM_BIT_AND     db  "; -- BIT AND --", 10, "pop rdx", 10, "pop rax", 10, "and rax, rdx", 10, "push rax", 10
 ASM_BIT_AND_LEN =   $ - ASM_BIT_AND
 
-ASM_BIT_OR      db  "; -- BIT OR --", 10, "pop rbx", 10, "pop rax", 10, "or rax, rbx", 10, "push rbx", 10
+ASM_BIT_OR      db  "; -- BIT OR --", 10, "pop rdx", 10, "pop rax", 10, "or rax, rdx", 10, "push rax", 10
 ASM_BIT_OR_LEN  =   $ - ASM_BIT_OR
 
 ASM_AND         db  "; -- AND --", 10, "pop rbx", 10, "pop rax", 10, "mov rcx, 1", 10, "mov rdx, 0", 10, "and rax, rbx", 10, "cmp rax, 0", 10, "cmovnz rdx, rcx", 10, "push rdx", 10

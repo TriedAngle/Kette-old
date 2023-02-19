@@ -20,13 +20,17 @@ use: "std/linux_constants"
     syscall2 drop
 ;
 
-: file-open ( len ptr flags -- fd len ptr )
-    0 2swap
-    swap drop
-    rot swap
+: file-open-mode ( len ptr flags mode -- fd len ptr )
+    2swap       // f m l p
+    swap drop   // f m p 
+    rot swap    // m f p
     file-descriptor
     dup file-length
     2dup file-memory-map
+;
+
+: file-open ( len ptr flags -- fd len ptr )
+    FilePermUserFull file-open-mode
 ;
 
 : file-close ( fd len ptr -- )

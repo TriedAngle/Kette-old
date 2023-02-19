@@ -26,3 +26,25 @@
 : StdIn         0   ;
 : StdOut        1   ;
 : StdErr        2   ;
+
+: FilePermUserFull      448 ;
+: FilePermUserRead      256 ;
+: FilePermUserWrite     128 ;
+: FilePermUserExec      64  ;
+: FilePermUserRW        384 ;
+
+
+: FilePermGroupFull     56 ;
+: FilePermGroupRead     32 ;
+: FilePermGroupWrite    16 ;
+: FilePermGroupExec     8  ;
+: FilePermGroupRW       48 ;
+
+: FilePermOtherFull     7 ;
+: FilePermOtherRead     4 ;
+: FilePermOtherWrite    2 ;
+: FilePermOtherExec     1 ;
+: FilePermOtherRW       6 ;
+
+: FilePermAllRW         438 ;
+: FilePermAllFull       511 ;

@@ -1,5 +1,14 @@
+use: "std/core"
 use: "std/io"
+use: "std/linux_constants"
 
 "test.txt" OpRead [
     print-string
 ] with-file
+
+"test_out.txt" 
+OpCreate OpWrite OpTrunctuate bitor bitor
+FilePermAllRW
+file-open-mode
+
+file-close
