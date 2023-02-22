@@ -1,0 +1,6 @@
+use: "std/mem"
+
+2 memory-alloc-pages 
+over 10 swap set
+over get .
+memory-dealloc

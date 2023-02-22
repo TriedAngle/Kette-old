@@ -5,7 +5,8 @@
 : SysLSeek      8   ;
 : SysMMap       9   ;
 : SysMunMap     11  ;
-
+: SysMReMap     25  ;
+: SysExit       60  ;
 
 : OpRead        0   ;
 : OpWrite       1   ;
@@ -18,6 +19,7 @@
 
 : MapFile       0   ;
 : MapPrivate    2   ;
+: MapAnonymous  32  ;
 
 : SeekSet       0   ;
 : SeekCurrent   1   ;

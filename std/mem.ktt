@@ -1,0 +1,23 @@
+use: "std/linux_constants"
+
+: PageSize 4096 ;
+
+: memory-alloc-pages ( n -- ptr len )
+  PageSize * dup returnpush returnpush
+  0 0
+  MapPrivate MapAnonymous bitor
+  ProtRead ProtWrite bitor
+  returnpop
+  0
+  SysMMap
+  syscall6
+  returnpop
+;
+
+: memory-dealloc ( ptr len -- )
+  swap SysMunMap syscall2 drop
+;
+
+: memory-resize ( ptr len newLen -- ptr len )
+  dup returnpush rot rot SysMReMap syscall3 returnpop
+;
