@@ -7,7 +7,7 @@ var: fibo 8
 
 var: global 24
 
-: global>>counter>> ( -- c ) global get ;
+: global>>counter>> ( -- c ) global 0 + get ;
 : global>>counter<<inc ( -- ) global get 1 + global set ;
 : global>>temp>> ( -- n ) global 8 + get ;
 : >>global>>temp ( n -- ) global 8 + set ;

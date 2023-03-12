@@ -1,0 +1,23 @@
+use: "std/core"
+use: "std/io"
+use: "std/linux_constants"
+
+// fd
+// len
+// ptr
+// offset
+var: outputFile 32
+
+// memory | layout: len ptr 
+// memory Length
+// count
+var: inputFileNames 24
+
+// file id
+// file memory ptr
+// file memory length
+// current Offset
+// current Line
+// current Column
+var: lexer 48
+
