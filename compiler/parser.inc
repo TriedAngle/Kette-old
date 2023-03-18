@@ -19,30 +19,9 @@ Parser:
   mov rax, 1
   syscall
 
-  mov rdi, sizeof.Testing
-  call print_uint
-  call print_newline
+  printfmp "Struct size %d\n", sizeof.Testing
 
-  mov rdi, Testing.owo
-  call print_uint
-  call print_newline
+  printfmp "owo offset %d\n", Testing.owo
 
-  mov rdi, Testing.uwu
-  call print_uint
-  call print_newline
-
-
-  add rsp, sizeof.Testing
-
-  mov rdi, 1
-  mov rsi, helloParser
-  mov rdx, helloParserLen
-  mov rax, 1
-  syscall
-
-  mov rdi, 1
-  mov rsi, helloParser
-  mov rdx, helloParserLen
-  mov rax, 1
-  syscall
+  printfmp "uwu offset %d\n",  Testing.uwu
   ret
