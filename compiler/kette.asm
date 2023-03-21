@@ -5,20 +5,21 @@ include "macros.inc"
 include "linux.inc"
 
 entry $
-  call Parser.hello
-  ; call Mem.allocate
-  ; mov r10, 2
-  ; mov rdi, testing2
-  ; mov rsi, testing2Len
-  ; call printf
+  call Memory.setup
 
-  ; pop rax
-  ; pop rcx
-  ; pop rax
-  printfmp "kitten count %d\n", 666420
-  mov rax, 2345
-  printfmp "kitten count %d\n", rax
+  mov rdi, 50
+  call malloc
+  mov rdi, rax
 
+  mov r12, [rdi - 16]
+  mov r13, [r12 + MemHeap.blocks_free]
+  printl valStr, r13
+
+  call free
+  mov r13, [r12 + MemHeap.blocks_free]
+  printl valStr, r13
+
+  call Memory.deallocFull
   mov rdi, 0
   mov rax, SYS_EXIT
   syscall

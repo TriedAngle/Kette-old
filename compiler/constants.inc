@@ -1,4 +1,7 @@
-GROW_SIZE = 2
-PAGE1_BYTES = 4096
-PAGE2_BYTES = 8192
-PAGE4_BYTES = 16384
+true = 1
+false = 0
+null = 0
+
+testStr db "testing %d\n"
+countStr db "count: %d\n"
+valStr db "value: %d\n"

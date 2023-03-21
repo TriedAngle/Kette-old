@@ -5,3 +5,5 @@ helloParser db "hello from parser",10, 0
 helloParserLen = $ - helloParser
 helloXD db "hello from XD",10, 0
 helloXDLen = $ - helloXD
+
+heap_root dq ?

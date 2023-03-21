@@ -34,7 +34,8 @@ macro printfm string, ptr {
 }
 
 macro printfmp string, [vars] {
-  local format, len, behind
+  local format, len
+  local behind
   jmp behind
   format db string, 0
   len = $ - format
@@ -48,4 +49,28 @@ macro printfmp string, [vars] {
   call printf
   forward
     pop rax
+}
+
+macro printl label, [vars] {
+  push rdi 
+  push rsi
+  push rax
+  push rcx
+  push rdx
+  local len 
+  len = $ - label
+    lea rdx, [rsp - 8]
+  forward
+    push vars
+  mov r10, 0
+  mov rdi, label
+  mov rsi, len
+  call printf
+  forward
+    pop rax
+  pop rdx
+  pop rcx
+  pop rax
+  pop rsi
+  pop rdi
 }

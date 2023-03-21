@@ -2,7 +2,7 @@ Linux:
 ; input:
 ;   rdi: size
 .mmap_mem_default:
-  mov r10, MAP_PRIVATE
+  mov rsi, MAP_PRIVATE
   mov rdx, PROT_READ or PROT_WRITE
 
 ; input
@@ -36,19 +36,27 @@ Linux:
 
   xor rdx, rdx
   mov rax, r10
-  mov r8 , PAGE1_BYTES
+  mov r8 , LINUX_PAGE_SIZE
   div r8
   mov r8 , rax
   mov r9 , rdx
   
-  mov rax, PAGE1_BYTES
+  mov rax, LINUX_PAGE_SIZE
   mul r8
   mov rdx, rax
 
   mov r10, rax
-  add r10, PAGE1_BYTES
+  add r10, LINUX_PAGE_SIZE
   cmp r9 , 0
   cmovnz rdx, r10
   
   pop rax
+  ret
+
+; input:
+;   rdi: ptr
+;   rsi: len
+.munmap:
+  mov rax, SYS_MUNMAP
+  syscall
   ret
