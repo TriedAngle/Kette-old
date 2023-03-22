@@ -38,3 +38,14 @@ macro printlv var {
 macro printlt var {
   printl testStr, var
 }
+
+macro with [obj] { 
+  forward 
+    push r15
+    call obj#.new
+  common macro endwith \{
+  reverse 
+    call obj#.destroy
+    pop r15
+  common \} 
+}

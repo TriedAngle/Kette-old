@@ -7,17 +7,15 @@ include "linux.inc"
 entry $
   call Memory.setup
 
-  mov rdi, 5
-  call malloc
-  mov rdi, rax
-
-  printlv rdi
-  mov rsi, 200
-  call realloc
-  mov rdi, rax
-  printlv rdi
-
-  call free
+  with Parser
+    printlt r15
+    with Parser
+      printlt r15
+      call Parser.hello
+    endwith
+    printlt r15
+    call Parser.hello
+  endwith
 
   call Memory.deallocFull
   
