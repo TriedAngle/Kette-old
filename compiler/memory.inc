@@ -282,4 +282,22 @@ free:
   inc [rax + MemHeap.blocks_free]
   ret
 
+; input:
+;   rdi: ptr
+;   rsi: size
+; output:
+;   rax: ptr
 realloc:
+  mov rax, [rdi - 16] ; heap
+  cmp [rax + MemHeap.block_storage_size], rsi
+  mov rax, rdi
+  jge realloc.skip
+  push rdi
+  mov rdi, rsi
+  call malloc
+  pop rdi
+  push rax
+  call free
+  pop rax
+  .skip:
+  ret
