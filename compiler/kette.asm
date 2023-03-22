@@ -7,20 +7,17 @@ include "linux.inc"
 entry $
   call Memory.setup
 
-  mov rdi, 4030
+  mov rdi, 5
   call malloc
   mov rdi, rax
 
-  mov r12, [rdi - 16]
-  mov r13, [r12 + MemHeap.blocks_free]
-  printlv r13
-  mov r14, [r12 + MemHeap.block_size]
-  printlv r14
+  printlv rdi
+  mov rsi, 200
+  call realloc
+  mov rdi, rax
+  printlv rdi
 
   call free
-  call free
-  mov r13, [r12 + MemHeap.blocks_count]
-  printlv r13
 
   call Memory.deallocFull
   
