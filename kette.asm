@@ -3857,8 +3857,6 @@ print_char:
     pop     rdi
     ret
 
-; modify:
-;   rsi, rdx, rax, (rcx as well XD)
 print_newline:
     push    rsi
     push    rdx

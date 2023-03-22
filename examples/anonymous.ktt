@@ -1,6 +1,4 @@
-: when in swap if then call end ;
 
-: choice in rot if then drop call else swap drop call end ;
 
 1 [ 69 . ] when
 

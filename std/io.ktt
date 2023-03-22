@@ -8,44 +8,44 @@ use: "std/linux_constants"
 : file-length ( fd -- len ) SeekEnd 0 rot SysLSeek syscall3 ;
 
 : file-memory-map ( fd len -- ptr )
-    0 rot rot
-    MapPrivate swap
-    ProtRead swap
-    0 SysMMap
-    syscall6
+  0 rot rot
+  MapPrivate swap
+  ProtRead swap
+  0 SysMMap
+  syscall6
 ;
 
 : file-memory-unmap ( len ptr -- )
-    SysMunMap
-    syscall2 drop
+  SysMunMap
+  syscall2 drop
 ;
 
 : file-open-mode ( len ptr flags mode -- fd len ptr )
-    2swap       // f m l p
-    swap drop   // f m p 
-    rot swap    // m f p
-    file-descriptor
-    dup file-length
-    2dup file-memory-map
+  2swap       // f m l p
+  swap drop   // f m p 
+  rot swap    // m f p
+  file-descriptor
+  dup file-length
+  2dup file-memory-map
 ;
 
 : file-open ( len ptr flags -- fd len ptr )
-    FilePermUserFull file-open-mode
+  FilePermUserFull file-open-mode
 ;
 
 : file-close ( fd len ptr -- )
-    file-memory-unmap
-    SysClose syscall1
+  file-memory-unmap
+  SysClose syscall1
 ;
 
 
 : with-file ( len ptr flags fp -- )
-    returnpush // fp
-    file-open // fd len ptr 
-    2dup
-    returnpop call
-    2drop
-    file-close
+  returnpush // fp
+  file-open // fd len ptr 
+  2dup
+  returnpop call
+  2drop
+  file-close
 ;
 
 // printing
