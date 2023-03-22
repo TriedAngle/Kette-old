@@ -7,23 +7,24 @@ include "linux.inc"
 entry $
   call Memory.setup
 
-  mov rdi, 50
+  mov rdi, 4030
   call malloc
   mov rdi, rax
 
   mov r12, [rdi - 16]
   mov r13, [r12 + MemHeap.blocks_free]
-  printl valStr, r13
+  printlv r13
+  mov r14, [r12 + MemHeap.block_size]
+  printlv r14
 
   call free
-  mov r13, [r12 + MemHeap.blocks_free]
-  printl valStr, r13
+  call free
+  mov r13, [r12 + MemHeap.blocks_count]
+  printlv r13
 
   call Memory.deallocFull
-  mov rdi, 0
-  mov rax, SYS_EXIT
-  syscall
-
+  
+  exit0
 
 
 include "utils.inc"

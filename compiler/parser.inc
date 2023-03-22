@@ -18,10 +18,4 @@ Parser:
   mov rdx, helloParserLen
   mov rax, 1
   syscall
-
-  printfmp "Struct size %d\n", sizeof.Testing
-
-  printfmp "owo offset %d\n", Testing.owo
-
-  printfmp "uwu offset %d\n",  Testing.uwu
   ret
