@@ -34,7 +34,6 @@ Parser:
   mov [rax + ParserS.line], 1
   mov [rax + ParserS.col], 1
   mov [rax + ParserS.output], rdx
-  mov r15, rax
   ret
 
 .destroy:

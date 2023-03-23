@@ -7,25 +7,38 @@ include "linux.inc"
 entry $
   call Memory.setup
 
-  with Parser
-    printlt r15
-    with Parser
-      printlt r15
-      call Parser.hello
-    endwith
-    printlt r15
-    call Parser.hello
+  with ArrayList
+
+  mov rdi, 10
+  call ArrayList.push_back
+  mov rdi, 66
+  call ArrayList.push_back
+  mov rdi, 73
+  call ArrayList.push_back
+  mov rdi, 100
+  call ArrayList.push_back
+
+  call ArrayList.pop_back
+  printlv rax
+  call ArrayList.pop_back
+  printlv rax
+  call ArrayList.pop_back
+  printlv rax
+  call ArrayList.pop_back
+  printlv rax
+  
   endwith
 
   call Memory.deallocFull
   
   exit0
 
-
-include "utils.inc"
-include "memory.inc"
-include "parser.inc"
 include "syscalls.inc"
+include "memory.inc"
+include "utils.inc"
+include "arraylist.inc"
+include "parser.inc"
+
 
 segment readable
 testing db "Hello %s world %d !", 0

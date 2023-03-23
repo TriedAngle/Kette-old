@@ -43,6 +43,7 @@ macro with [obj] {
   forward 
     push r15
     call obj#.new
+    mov r15, rax
   common macro endwith \{
   reverse 
     call obj#.destroy
