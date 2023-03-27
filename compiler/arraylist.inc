@@ -119,3 +119,15 @@ ArrayList:
   .skip_shrink:
   pop rax
   ret
+
+; input: 
+;   rdi: idx
+.get:
+  mov rax, [r15 + ArrayListS.element_size]
+  mul rdi
+  mov rdi, rax
+  mov rax, [r15 + ArrayListS.allocation]
+  lea rax, [rax + rdi]
+  mov rax, [rax]
+  ret
+  

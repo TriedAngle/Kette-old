@@ -18,6 +18,14 @@ entry $
   mov rdi, 100
   call ArrayList.push_back
 
+  mov rdi, 0
+  call ArrayList.get
+  printlv rax
+
+  mov rdi, 2
+  call ArrayList.get
+  printlv rax
+
   call ArrayList.pop_back
   printlv rax
   call ArrayList.pop_back

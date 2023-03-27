@@ -17,9 +17,7 @@ end virtual
 
 
 struc TokenStorageS {
-  .storage dq ? ; ptr
-  .storage_size dq ? ; 
-  .add_offset dq ? ; ptr
+  .
 }
 
 TokenStorage:
