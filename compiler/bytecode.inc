@@ -1,24 +1,32 @@
-struc Code {
-  .type dw ?
-  .subtype dw ?
-  .line dw ?
-  .col dw ?
+newToken tkString
+newToken tkNumber
+newToken tkSymbol
+
+iota true
+newToken subString
+
+struc CodeToken {
+  .type db ?
+  .subtype db ?
+  .line dd ?
+  .col dd ?
   .source_id dq ? ; index in array
+  .slotw dw ?
+  .slotd dd ?
   .slot0 dq ?
   .slot1 dq ?
   .slot2 dq ?
-  .slot3 dq ?
 }
 
 virtual at 0
-  Code Code
-  sizeof.Code = $ - Code
+  CodeToken CodeToken
+  sizeof.CodeToken = $ - CodeToken
 end virtual
 
 
-struc TokenStorageS {
-  .
-}
+; struc TokenStorageS {
+;   .
+; }
 
 TokenStorage:
 
@@ -26,4 +34,4 @@ TokenStorage:
 
 ; input
 ;   rdi: ptr [Code]
-.add_code:
+.add_token:

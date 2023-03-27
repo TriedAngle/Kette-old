@@ -50,3 +50,17 @@ macro with [obj] {
     pop r15
   common \} 
 }
+
+iota_n = 0
+macro iota reset {
+  if reset
+    iota_n = 0
+  else
+    iota_n = iota_n + 1
+  end if
+}
+
+macro newToken token {
+  token = iota_n
+  iota false
+}
