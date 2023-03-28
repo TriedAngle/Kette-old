@@ -39,6 +39,20 @@ macro printlt var {
   printl testStr, var
 }
 
+macro printlvsn var {
+  push rdi
+  push rax
+  mov rdi, var
+  call strlen
+  printl valStrStr, rdi rax
+  pop rax
+  pop rdi
+}
+
+macro printlvs string, length {
+  printl valStrStr, string length
+}
+
 macro with [obj] { 
   forward 
     push r15

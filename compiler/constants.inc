@@ -5,3 +5,5 @@ null = 0
 testStr db "test: %d\n"
 countStr db "count: %d\n"
 valStr db "value: %d\n"
+valStrStr db "string: %s\n"
+valStrStrLen = $ - valStrStr

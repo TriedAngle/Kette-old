@@ -16,13 +16,20 @@ entry $
 
   mov rcx, 1
   getArg rcx
-  mov rdi, rax
-  call print_string_nullterm
+  printlvsn rax
 
-  printlv tkString
-  printlv tkNumber
-  printlv tkSymbol
-  printlv subString
+  ; mov rdi, rax
+  ; call strlen
+  ; lea rdx, [rsp - 8]
+  ; push rdi
+  ; push rax
+
+  ; mov rdi, valStrStr
+  ; mov rsi, valStrStrLen
+  ; call printf
+  ; pop rax
+  ; pop rax
+
 
   call Memory.deallocFull
   
