@@ -1,4 +1,47 @@
+; input:
+;   rdi: string
+; output:
+;   rax: len
+strlen:
+  xor rax, rax
+  .loop_strlen:
+    inc rax
+    cmp BYTE [rdi + rax], 0
+    jnz .loop_strlen
+  ret
 
+; input:
+;   rdi: ptr string
+print_string_nullterm:
+  push rdi
+  push rax
+  call strlen
+  mov rsi, rax
+  pop rax
+  pop rdi
+
+; input:
+;   rdi: ptr string
+;   rsi: len string
+print_string:
+  push    rdi
+  push    rax
+  push    rdx
+  push    rcx
+  push    rsi
+
+  mov     rdx, rsi
+  mov     rsi, rdi
+  mov     rdi, STDOUT
+  mov     rax, SYS_WRITE
+  syscall
+  
+  pop     rsi
+  pop     rcx
+  pop     rdx
+  pop     rax
+  pop     rdi
+  ret
 
 ; prints uint
 ; input:

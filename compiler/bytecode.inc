@@ -24,13 +24,33 @@ virtual at 0
 end virtual
 
 
-; struc TokenStorageS {
-;   .
-; }
+struc TokenStorageS {
+  .tokens dq ? ; ptr ArrayList
+}
+
+virtual at 0
+  TokenStorageS TokenStorageS
+  sizeof.TokenStorageS = $ - TokenStorageS
+end virtual
 
 TokenStorage:
 
 .new:
+  mov rdi, sizeof.TokenStorageS
+  call malloc
+  mov rdi, rax
+  call ArrayList.new
+  mov [rdi + TokenStorageS.tokens], rax 
+  mov rax, rdi
+  ret
+
+.destroy:
+  mov rdi, [r15 + TokenStorageS.tokens]
+  call free
+  mov rdi, r15
+  call free
+  ret
+
 
 ; input
 ;   rdi: ptr [Code]

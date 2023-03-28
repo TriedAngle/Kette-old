@@ -64,3 +64,12 @@ macro newToken token {
   token = iota_n
   iota false
 }
+
+macro getArgCount {
+  mov rax, [arg_count]
+}
+
+macro getArg n {
+  mov rax, [arg_ptr]
+  lea rax, [rax + n * 8]
+}
