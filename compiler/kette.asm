@@ -10,48 +10,23 @@ entry $
   mov rax, [rsp + 8]
   mov [arg_ptr], rax
   call Memory.setup
-
+  
+  with TokenStorage
   mov rdi, programCode
   mov rsi, programCodeLen
   mov rdx, 0
-  with Lexer
+  mov rcx, 0
+  mov rcx, r15
+  with Lexer 
+  lexing:
     call Lexer.next_word
+    cmp rax, 0
+    je lexing.end
     printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
-    call Lexer.next_word
-    printlvs rax, rdx
+    jmp lexing
+  .end:
   endwith
-
-  ; mov rdi, rax
-  ; call strlen
-  ; lea rdx, [rsp - 8]
-  ; push rdi
-  ; push rax
-
-  ; mov rdi, valStrStr
-  ; mov rsi, valStrStrLen
-  ; call printf
-  ; pop rax
-  ; pop rax
+  endwith
 
 
   call Memory.deallocFull

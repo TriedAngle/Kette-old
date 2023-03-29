@@ -2,8 +2,8 @@ newToken tkString
 newToken tkNumber
 newToken tkSymbol
 
-iota true
-newToken subString
+; iota true
+; newToken subString
 
 struc CodeToken {
   .type db ?
@@ -33,13 +33,14 @@ virtual at 0
   sizeof.TokenStorageS = $ - TokenStorageS
 end virtual
 
-TokenStorage:
 
+TokenStorage:
 .new:
   mov rdi, sizeof.TokenStorageS
   call malloc
-  mov rdi, rax
+  push rax
   call ArrayList.new
+  pop rdi
   mov [rdi + TokenStorageS.tokens], rax 
   mov rax, rdi
   ret

@@ -177,7 +177,7 @@ printf:
     pop rsi
     pop rdi
     dec rsi
-    sub rdx, 16
+    add rdx, 16
     jmp .next
 
   .print_decimal:

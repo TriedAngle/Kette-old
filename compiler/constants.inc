@@ -12,6 +12,8 @@ valStr db "value: %d\n"
 valStrStr db "string: %s\n"
 valCharStr db "char: %c\n"
 
+valValStr db "value: %d, %d\n"
+
 testingString db "hello world XD", 0
 
 programCode db ""

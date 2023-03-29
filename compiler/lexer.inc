@@ -2,6 +2,7 @@ struc LexerS {
   .cursor dq ?
   .string dq ?
   .length dq ?
+  .source_id dq ?
   .line dq ?
   .col dq ?
   .output dq ? ; ptr [TokenStorage]
@@ -16,22 +17,26 @@ Lexer:
 ; input:
 ;   rdi: source string
 ;   rsi: source length
-;   rdx: output ptr
+;   rdx: source id
+;   rcx: output ptr
 .new:
   push rdi
   push rsi
   push rdx
+  push rcx
   mov rdi, sizeof.LexerS
   call malloc
+  pop rcx
   pop rdx
   pop rsi
   pop rdi
   mov [rax + LexerS.cursor], 0
   mov [rax + LexerS.string], rdi
   mov [rax + LexerS.length], rsi
+  mov [rax + LexerS.source_id], rdx
   mov [rax + LexerS.line], 1
   mov [rax + LexerS.col], 1
-  mov [rax + LexerS.output], rdx
+  mov [rax + LexerS.output], rcx
   ret
 
 .destroy:
@@ -163,12 +168,13 @@ Lexer:
 ;   rax: ptr
 ;   rdx: len
 .next_word:
+  call Lexer.skip_whitespace
+
   call Lexer.is_done?
   cmp rax, true
   mov rax, 0
   je Lexer.next_word_skip
 
-  call Lexer.skip_whitespace
   call Lexer.move_until_whitespace
   .next_word_skip:
   ret

@@ -4,7 +4,7 @@ macro exit0 {
   syscall
 }
 
-macro printl label, [vars] {
+macro printl label, reps, [vars] {
   push rdi 
   push rsi
   push rax
@@ -13,7 +13,7 @@ macro printl label, [vars] {
   push r8
   local len 
   len = $ - label
-    lea r11, [rsp - 8]
+  lea r11, [rsp - 8]
   forward
     push vars
   mov r10, 0
@@ -21,8 +21,9 @@ macro printl label, [vars] {
   mov rdi, label
   mov rsi, len
   call printf
-  forward
+  repeat reps
     pop rax
+  end repeat
   pop r8
   pop rdx
   pop rcx
@@ -32,15 +33,19 @@ macro printl label, [vars] {
 }
 
 macro printlv var {
-  printl valStr, var
+  printl valStr, 1, var
+}
+
+macro printlvv var1, var2 {
+  printl valValStr, 2, var1 var2
 }
 
 macro printlt var {
-  printl testStr, var
+  printl testStr, 1, var
 }
 
 macro printlvc var {
-  printl valCharStr, var
+  printl valCharStr, 1, var
 }
 
 macro printlvsn var {
@@ -48,13 +53,13 @@ macro printlvsn var {
   push rax
   mov rdi, var
   call strlen
-  printl valStrStr, rdi rax
+  printl valStrStr, 2, rdi rax
   pop rax
   pop rdi
 }
 
 macro printlvs stringPtr, length {
-  printl valStrStr, stringPtr length
+  printl valStrStr, 2, stringPtr length
 }
 
 macro with [obj] { 
