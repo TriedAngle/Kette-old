@@ -10,6 +10,8 @@ strlen:
     jnz .loop_strlen
   ret
 
+
+
 ; input:
 ;   rdi: ptr string
 print_string_nullterm:

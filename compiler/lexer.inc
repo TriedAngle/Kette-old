@@ -178,3 +178,45 @@ Lexer:
   call Lexer.move_until_whitespace
   .next_word_skip:
   ret
+
+.lex:
+  push r12
+  push r13
+  .lexing:
+    call Lexer.next_word
+    cmp rax, 0
+    je Lexer.lexing_end
+    mov r12, rax
+    mov r13, rdx 
+    
+    mov rdi, sizeof.CodeToken
+    call malloc
+    mov rdi, rax
+    push rdi
+    push r15
+    mov r15, [r15 + LexerS.output]
+    call TokenStorage.add_token
+    pop r15
+    pop rdi
+
+
+
+    jmp Lexer.lexing
+  .lexing_end:
+  pop r13
+  pop r12
+  ret
+
+
+.match_symbol:
+  ; call
+  ret
+
+; input:
+;   rdi: ptr
+;   rsi: len
+; output:
+;   rax: bool
+;   rdx: subtype 
+.match_number:
+  ret

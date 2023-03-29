@@ -6,6 +6,15 @@ whitespace = 32
 newline = 10
 horizontalTab = 9
 
+newString symBO   , "["
+newString symBC   , "]"
+newString symCol  , ":"
+newString symSim  , ";"
+newString symEq   , "="
+
+
+
+
 testStr db "test: %d\n"
 countStr db "count: %d\n"
 valStr db "value: %d\n"

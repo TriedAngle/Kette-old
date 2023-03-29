@@ -45,6 +45,41 @@ virtual at 0
 end virtual
 
 Memory:
+; input:
+;   rdi: ptr mem 1
+;   rsi: len mem 1
+;   rdx: ptr mem 2
+;   rcx: len mem 2
+.cmp:
+  push r12
+  mov r12, false
+  mov rax, true
+  cmp rsi, rcx
+  cmovne rax, r12
+  jne Memory.cmp_early_return
+  push rbx
+  push r13
+  push rcx
+  xor rbx, rbx
+  .cmp_loop:
+    cmp rbx, rsi
+    je Memory.cmp_loop_end
+    mov r13, [rdi + rbx]
+    inc rbx
+    cmp r13, [rdx + rcx]
+    mov rcx, rbx
+    je Memory.cmp_loop
+    mov rax, r12
+  .cmp_loop_end:
+  pop rcx
+  pop r13
+  pop rbx
+  .cmp_early_return:
+  pop r12
+  ret
+   
+
+
 .setup:
   push rbx
  

@@ -2,6 +2,11 @@ newToken tkString
 newToken tkNumber
 newToken tkSymbol
 
+iota true
+newToken tvNumInt
+newToken tvNumFloat
+newToken tvNumExp
+newToken tvNumFloatExp
 ; iota true
 ; newToken subString
 
@@ -53,6 +58,9 @@ TokenStorage:
   ret
 
 
-; input
-;   rdi: ptr [Code]
 .add_token:
+  push r15
+  mov r15, [r15 + TokenStorageS.tokens]
+  call ArrayList.push_back
+  pop r15
+  ret

@@ -10,7 +10,7 @@ entry $
   mov rax, [rsp + 8]
   mov [arg_ptr], rax
   call Memory.setup
-  
+
   with TokenStorage
   mov rdi, programCode
   mov rsi, programCodeLen
@@ -18,16 +18,9 @@ entry $
   mov rcx, 0
   mov rcx, r15
   with Lexer 
-  lexing:
-    call Lexer.next_word
-    cmp rax, 0
-    je lexing.end
-    printlvs rax, rdx
-    jmp lexing
-  .end:
+    call Lexer.lex
   endwith
   endwith
-
 
   call Memory.deallocFull
   
