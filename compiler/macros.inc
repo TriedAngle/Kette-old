@@ -39,6 +39,10 @@ macro printlt var {
   printl testStr, var
 }
 
+macro printlvc var {
+  printl valCharStr, var
+}
+
 macro printlvsn var {
   push rdi
   push rax
@@ -49,8 +53,8 @@ macro printlvsn var {
   pop rdi
 }
 
-macro printlvs string, length {
-  printl valStrStr, string length
+macro printlvs stringPtr, length {
+  printl valStrStr, stringPtr length
 }
 
 macro with [obj] { 
@@ -86,4 +90,9 @@ macro getArgCount {
 macro getArg n {
   mov rax, [arg_ptr]
   lea rax, [rax + n * 8]
+}
+
+macro ifTrue label {
+  cmp rax, true
+  je label
 }

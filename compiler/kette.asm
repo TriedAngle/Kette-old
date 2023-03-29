@@ -11,12 +11,35 @@ entry $
   mov [arg_ptr], rax
   call Memory.setup
 
-  getArgCount
-  printlv rax
-
-  mov rcx, 1
-  getArg rcx
-  printlvsn rax
+  mov rdi, programCode
+  mov rsi, programCodeLen
+  mov rdx, 0
+  with Lexer
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+    call Lexer.next_word
+    printlvs rax, rdx
+  endwith
 
   ; mov rdi, rax
   ; call strlen
@@ -40,6 +63,7 @@ include "memory.inc"
 include "utils.inc"
 include "arraylist.inc"
 include "bytecode.inc"
+include "lexer.inc"
 include "parser.inc"
 
 
