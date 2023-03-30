@@ -5,12 +5,36 @@ null = 0
 whitespace = 32
 newline = 10
 horizontalTab = 9
+quotes = 34
 
-newString symBO   , "["
-newString symBC   , "]"
-newString symCol  , ":"
-newString symSim  , ";"
-newString symEq   , "="
+macro newString name, string {
+  name db string
+  name#.len = $ - name
+}
+
+newString symBO     , "["
+newString symBC     , "]"
+newString symCol    , ":"
+newString symSim    , ";"
+
+newString symEq     , "="
+newString symEqLe   , "="
+newString symEqGr   , "="
+newString symLe     , "<"
+newString symGr     , ">"
+
+newString symAdd    , "+"
+newString symSub    , "-"
+newString symMul    , "*"
+newString symDiv    , "/"
+newString symMod    , "%"
+newString symModDiv , "/%"
+
+newString symMacro    , "macro:"
+
+newString symBitAnd   , "bitand"
+newString symBitOr    , "bitor"
+newString symBitLeft  , "bitleft"
 
 
 

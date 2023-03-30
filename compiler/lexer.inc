@@ -3,8 +3,8 @@ struc LexerS {
   .string dq ?
   .length dq ?
   .source_id dq ?
-  .line dq ?
-  .col dq ?
+  .line dd ?
+  .col dd ?
   .output dq ? ; ptr [TokenStorage]
 }
 
@@ -191,32 +191,100 @@ Lexer:
     
     mov rdi, sizeof.CodeToken
     call malloc
-    mov rdi, rax
-    push rdi
+    mov rdx, rax
+    push rdx
     push r15
     mov r15, [r15 + LexerS.output]
     call TokenStorage.add_token
     pop r15
-    pop rdi
+    pop rdx
 
+    xor rax, rax
+    mov eax, [r15 + LexerS.line]
+    mov [rdx + CodeToken.line], eax
+    mov eax, [r15 + LexerS.col]
+    sub rax, r13
+    mov [rdx + CodeToken.col], eax
 
+    mov rdi, r12
+    mov rsi, r13
 
+    call Lexer.match_symbol
+    ifTrue Lexer.lexing_next
+    call Lexer.match_number
+    ifTrue Lexer.lexing_next
+
+    .lexing_next:
     jmp Lexer.lexing
   .lexing_end:
   pop r13
   pop r12
   ret
 
+macro testSymbol name, tk, tks=0 {
+  mov rdx, name
+  mov rcx, name#.len
+  call Memory.cmp
+  mov rcx, rax
+  xor rax, rax
+  xor rdx, rdx
+  cmp rcx, true
+  mov rcx, tk
+  cmove rax, rcx
+  mov rcx, tks
+  cmove rdx, rcx
+  je Lexer.finalize_symbol
+}
 
+; input:
+;   rdi: ptr string
+;   rsi: len string
+;   rdx: ptr token
+; output:
+;   rax: bool
 .match_symbol:
-  ; call
+  push r12
+  mov r12, rdx
+
+  testSymbol symBO    , tkSymbolControl , tvControlBO
+  testSymbol symBC    , tkSymbolControl , tvControlBC
+  testSymbol symCol   , tkSymbolControl , tvControlCol
+  testSymbol symSim   , tkSymbolControl , tvControlSim
+
+  testSymbol symEq    , tkSymbolBool    , tvBoolEq
+  testSymbol symEqLe  , tkSymbolBool    , tvBoolEqLe
+  testSymbol symEqGr  , tkSymbolBool    , tvBoolEqGre
+  testSymbol symLe    , tkSymbolBool    , tvBoolLe
+  testSymbol symGr    , tkSymbolBool    , tvBoolGr
+
+  testSymbol symAdd   , tkSymbolArith   , tvArithAdd
+  testSymbol symSub   , tkSymbolArith   , tvArithSub
+  testSymbol symMul   , tkSymbolArith   , tvArithMul
+  testSymbol symDiv   , tkSymbolArith   , tvArithDiv
+  testSymbol symMod   , tkSymbolArith   , tvArithMod
+  testSymbol symModDiv, tkSymbolArith   , tvArithModDiv
+
+  mov rax, false
+  mov rdx, r12
+  pop r12
+  ret 
+  .finalize_symbol:
+  mov [r12 + CodeToken.type], al
+  mov [r12 + CodeToken.subtype], dl
+  
+  mov rax, true
+  mov rdx, r12
+  pop r12
   ret
+
 
 ; input:
 ;   rdi: ptr
 ;   rsi: len
+;   rdx: ptr token
 ; output:
 ;   rax: bool
-;   rdx: subtype 
 .match_number:
   ret
+
+

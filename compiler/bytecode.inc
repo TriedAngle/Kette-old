@@ -1,6 +1,30 @@
+iota true
 newToken tkString
 newToken tkNumber
-newToken tkSymbol
+newToken tkSymbolControl
+newToken tkSymbolBool
+newToken tkSymbolArith
+
+iota true
+newToken tvControlBO
+newToken tvControlBC
+newToken tvControlCol
+newToken tvControlSim
+
+iota true
+newToken tvBoolEq
+newToken tvBoolEqLe
+newToken tvBoolEqGre
+newToken tvBoolLe
+newToken tvBoolGr
+
+iota true
+newToken tvArithAdd
+newToken tvArithSub
+newToken tvArithMul
+newToken tvArithDiv
+newToken tvArithMod
+newToken tvArithModDiv
 
 iota true
 newToken tvNumInt
@@ -15,7 +39,6 @@ struc CodeToken {
   .subtype db ?
   .line dd ?
   .col dd ?
-  .source_id dq ? ; index in array
   .slotw dw ?
   .slotd dd ?
   .slot0 dq ?

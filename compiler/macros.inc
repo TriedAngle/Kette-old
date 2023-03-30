@@ -88,10 +88,7 @@ macro newToken token {
   iota false
 }
 
-macro newString name, string {
-  name db string
-  name#.len = $ - string
-}
+
 
 macro getArgCount {
   mov rax, [arg_count]
