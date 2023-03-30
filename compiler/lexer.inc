@@ -209,7 +209,7 @@ Lexer:
     mov rdi, r12
     mov rsi, r13
 
-    call Lexer.match_symbol
+    call Lexer.match_symbols_and_keywords
     ifTrue Lexer.lexing_next
     call Lexer.match_number
     ifTrue Lexer.lexing_next
@@ -221,7 +221,7 @@ Lexer:
   pop r12
   ret
 
-macro testSymbol name, tk, tks=0 {
+macro matchWord name, tk, tks=0 {
   mov rdx, name
   mov rcx, name#.len
   call Memory.cmp
@@ -242,27 +242,59 @@ macro testSymbol name, tk, tks=0 {
 ;   rdx: ptr token
 ; output:
 ;   rax: bool
-.match_symbol:
+.match_symbols_and_keywords:
   push r12
   mov r12, rdx
 
-  testSymbol symBO    , tkSymbolControl , tvControlBO
-  testSymbol symBC    , tkSymbolControl , tvControlBC
-  testSymbol symCol   , tkSymbolControl , tvControlCol
-  testSymbol symSim   , tkSymbolControl , tvControlSim
+  matchWord symBO         , tkSymbol          , tvSymbolBO
+  matchWord symBC         , tkSymbol          , tvSymbolBC
+  matchWord symPO         , tkSymbol          , tvSymbolPO
+  matchWord symPC         , tkSymbol          , tvSymbolPC
+  matchWord symCol        , tkSymbol          , tvSymbolCol
+  matchWord symSim        , tkSymbol          , tvSymbolSim
 
-  testSymbol symEq    , tkSymbolBool    , tvBoolEq
-  testSymbol symEqLe  , tkSymbolBool    , tvBoolEqLe
-  testSymbol symEqGr  , tkSymbolBool    , tvBoolEqGre
-  testSymbol symLe    , tkSymbolBool    , tvBoolLe
-  testSymbol symGr    , tkSymbolBool    , tvBoolGr
+  matchWord builtinCall   , tkBuiltinControl  , tvControlCall 
+  matchWord builtinEval   , tkBuiltinControl  , tvControlEval 
+  matchWord builtinLoop   , tkBuiltinControl  , tvControlLoop 
+  matchWord builtinWhile  , tkBuiltinControl  , tvControlWhile
+  matchWord builtinGoto   , tkBuiltinControl  , tvControlGoto 
+  matchWord builtinIf     , tkBuiltinControl  , tvControlIf  
+  matchWord builtinMacro  , tkBuiltinControl  , tvControlMacro
+  matchWord builtinVar    , tkBuiltinControl  , tvControlVar
+  matchWord builtinIncl   , tkBuiltinControl  , tvControlIncl
 
-  testSymbol symAdd   , tkSymbolArith   , tvArithAdd
-  testSymbol symSub   , tkSymbolArith   , tvArithSub
-  testSymbol symMul   , tkSymbolArith   , tvArithMul
-  testSymbol symDiv   , tkSymbolArith   , tvArithDiv
-  testSymbol symMod   , tkSymbolArith   , tvArithMod
-  testSymbol symModDiv, tkSymbolArith   , tvArithModDiv
+  matchWord builtinDrop   , tkBuiltinStack    , tvBuiltinDrop 
+  matchWord builtinDup    , tkBuiltinStack    , tvBuiltinDup  
+  matchWord builtinSwap   , tkBuiltinStack    , tvBuiltinSwap 
+  matchWord builtinOver   , tkBuiltinStack    , tvBuiltinOver 
+  matchWord builtinRot    , tkBuiltinStack    , tvBuiltinRot  
+  matchWord builtinCRot   , tkBuiltinStack    , tvBuiltinCRot 
+  matchWord builtin2Drop  , tkBuiltinStack    , tvBuiltin2Drop
+  matchWord builtin2Dup   , tkBuiltinStack    , tvBuiltin2Dup 
+  matchWord builtin2Swap  , tkBuiltinStack    , tvBuiltin2Swap
+  matchWord builtin2Over  , tkBuiltinStack    , tvBuiltin2Over
+  matchWord builtinDropd  , tkBuiltinStack    , tvBuiltinDropd
+  matchWord builtinDupd   , tkBuiltinStack    , tvBuiltinDupd 
+  matchWord builtinSwapd  , tkBuiltinStack    , tvBuiltinSwapd
+  matchWord builtinOverd  , tkBuiltinStack    , tvBuiltinOverd
+  matchWord builtinRotd   , tkBuiltinStack    , tvBuiltinRotd 
+  matchWord builtinNip    , tkBuiltinStack    , tvBuiltinNip  
+  matchWord builtinPick   , tkBuiltinStack    , tvBuiltinPick 
+  matchWord builtinPickd  , tkBuiltinStack    , tvBuiltinPickd
+  matchWord builtinDip    , tkBuiltinStack    , tvBuiltinDip  
+
+  matchWord builtinEq     , tkBuiltinBool     , tvBoolEq
+  matchWord builtinLeEq   , tkBuiltinBool     , tvBoolLeEq
+  matchWord builtinGrEq   , tkBuiltinBool     , tvBoolGrEq
+  matchWord builtinLe     , tkBuiltinBool     , tvBoolLe
+  matchWord builtinGr     , tkBuiltinBool     , tvBoolGr
+
+  matchWord builtinAdd    , tkBuiltinArith    , tvArithAdd
+  matchWord builtinSub    , tkBuiltinArith    , tvArithSub
+  matchWord builtinMul    , tkBuiltinArith    , tvArithMul
+  matchWord builtinDiv    , tkBuiltinArith    , tvArithDiv
+  matchWord builtinMod    , tkBuiltinArith    , tvArithMod
+  matchWord builtinModDiv , tkBuiltinArith    , tvArithModDiv
 
   mov rax, false
   mov rdx, r12

@@ -1,20 +1,56 @@
 iota true
 newToken tkString
 newToken tkNumber
-newToken tkSymbolControl
-newToken tkSymbolBool
-newToken tkSymbolArith
+newToken tkSymbol
+newToken tkBuiltinControl
+newToken tkBuiltinStack
+newToken tkBuiltinBool
+newToken tkBuiltinArith
 
 iota true
-newToken tvControlBO
-newToken tvControlBC
-newToken tvControlCol
-newToken tvControlSim
+newToken tvSymbolBO
+newToken tvSymbolBC
+newToken tvSymbolPO
+newToken tvSymbolPC
+newToken tvSymbolCol
+newToken tvSymbolSim
+
+iota true
+newToken tvControlCall 
+newToken tvControlEval 
+newToken tvControlLoop 
+newToken tvControlWhile
+newToken tvControlGoto 
+newToken tvControlIf   
+newToken tvControlMacro
+newToken tvControlVar
+newToken tvControlIncl
+
+iota true
+newToken tvBuiltinDrop 
+newToken tvBuiltinDup  
+newToken tvBuiltinSwap 
+newToken tvBuiltinOver 
+newToken tvBuiltinRot  
+newToken tvBuiltinCRot 
+newToken tvBuiltin2Drop
+newToken tvBuiltin2Dup 
+newToken tvBuiltin2Swap
+newToken tvBuiltin2Over
+newToken tvBuiltinDropd
+newToken tvBuiltinDupd 
+newToken tvBuiltinSwapd
+newToken tvBuiltinOverd
+newToken tvBuiltinRotd 
+newToken tvBuiltinNip  
+newToken tvBuiltinPick 
+newToken tvBuiltinPickd
+newToken tvBuiltinDip  
 
 iota true
 newToken tvBoolEq
-newToken tvBoolEqLe
-newToken tvBoolEqGre
+newToken tvBoolLeEq
+newToken tvBoolGrEq
 newToken tvBoolLe
 newToken tvBoolGr
 
