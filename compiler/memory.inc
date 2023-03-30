@@ -56,22 +56,21 @@ Memory:
   mov rax, true
   cmp rsi, rcx
   cmovne rax, r12
-  jne Memory.cmp_early_return
+  jne Memory.cmp_early_return 
   push rbx
   push r13
-  push rcx
   xor rbx, rbx
   .cmp_loop:
     cmp rbx, rsi
     je Memory.cmp_loop_end
-    mov r13, [rdi + rbx]
+    xor r13, r13
+    mov r13b, byte [rdi + rbx]
+    cmp r13b, byte [rdx + rbx]
+    cmovne rax, r12
+    jne Memory.cmp_loop_end
     inc rbx
-    cmp r13, [rdx + rcx]
-    mov rcx, rbx
-    je Memory.cmp_loop
-    mov rax, r12
+    jmp Memory.cmp_loop
   .cmp_loop_end:
-  pop rcx
   pop r13
   pop rbx
   .cmp_early_return:
