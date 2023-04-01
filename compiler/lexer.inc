@@ -1,3 +1,145 @@
+iota true
+newToken tkWord
+newToken tkString
+newToken tkNumber
+newToken tkSymbol
+newToken tkBuiltinControl
+newToken tkBuiltinStack
+newToken tkBuiltinBool
+newToken tkBuiltinArith
+
+iota true
+newToken tvSymbolBO
+newToken tvSymbolBC
+newToken tvSymbolPO
+newToken tvSymbolPC
+newToken tvSymbolCol
+newToken tvSymbolSim
+newToken tvSymbolDot
+
+iota true
+newToken tvControlDot
+newToken tvControlCall 
+newToken tvControlEval 
+newToken tvControlLoop 
+newToken tvControlWhile
+newToken tvControlGoto 
+newToken tvControlIf   
+newToken tvControlMacro
+newToken tvControlVar
+newToken tvControlIncl
+
+iota true
+newToken tvBuiltinDrop 
+newToken tvBuiltinDup  
+newToken tvBuiltinSwap 
+newToken tvBuiltinOver 
+newToken tvBuiltinRot  
+newToken tvBuiltinCRot 
+newToken tvBuiltin2Drop
+newToken tvBuiltin2Dup 
+newToken tvBuiltin2Swap
+newToken tvBuiltin2Over
+newToken tvBuiltinDropd
+newToken tvBuiltinDupd 
+newToken tvBuiltinSwapd
+newToken tvBuiltinOverd
+newToken tvBuiltinRotd 
+newToken tvBuiltinNip  
+newToken tvBuiltinPick 
+newToken tvBuiltinPickd
+newToken tvBuiltinDip  
+
+iota true
+newToken tvBoolEq
+newToken tvBoolLeEq
+newToken tvBoolGrEq
+newToken tvBoolLe
+newToken tvBoolGr
+
+iota true
+newToken tvArithAdd
+newToken tvArithSub
+newToken tvArithMul
+newToken tvArithDiv
+newToken tvArithMod
+newToken tvArithModDiv
+
+iota true
+newToken tvNumInt
+newToken tvNumFloat
+newToken tvNumExp
+newToken tvNumFloatExp
+; iota true
+; newToken subString
+
+struc CodeToken {
+  .type db ?
+  .subtype db ?
+  .line dd ?
+  .col dd ?
+  .slotw dw ?
+  .slotd dd ?
+  .slot0 dq ?
+  .slot1 dq ?
+  .slot2 dq ?
+}
+
+virtual at 0
+  CodeToken CodeToken
+  sizeof.CodeToken = $ - CodeToken
+end virtual
+
+
+struc TokenStorageS {
+  .tokens dq ? ; ptr ArrayList
+  .count dq ?
+}
+
+virtual at 0
+  TokenStorageS TokenStorageS
+  sizeof.TokenStorageS = $ - TokenStorageS
+end virtual
+
+
+TokenStorage:
+.new:
+  mov rdi, sizeof.TokenStorageS
+  call malloc
+  push rax
+  call ArrayList.new
+  pop rdi
+  mov [rdi + TokenStorageS.count], 0
+  mov [rdi + TokenStorageS.tokens], rax 
+  mov rax, rdi
+  ret
+
+.destroy:
+  mov rdi, [r15 + TokenStorageS.tokens]
+  call free
+  mov rdi, r15
+  call free
+  ret
+
+.add_token:
+  inc [r15 + TokenStorageS.count]
+  push r15
+  mov r15, [r15 + TokenStorageS.tokens]
+  call ArrayList.push_back
+  pop r15
+  ret
+
+.get_token:
+  push r15
+  mov r15, [r15 + TokenStorageS.tokens]
+  call ArrayList.get
+  pop r15
+  ret
+
+.size:
+  mov rax, [r15 + TokenStorageS.count]
+  ret
+
 struc LexerS {
   .cursor dq ?
   .string dq ?
@@ -98,6 +240,18 @@ Lexer:
   pop rcx
   ret
 
+.is_at_string?:
+  push rcx
+  push rdx
+  call Lexer.current_char
+  mov rcx, rax
+  mov rax, false
+  mov rdx, true
+  cmp cl, double_quotes
+  cmove rax, rdx
+  pop rdx
+  pop rcx
+  ret
 
 .increment_cursor:
   inc [r15 + LexerS.cursor]
@@ -151,6 +305,8 @@ Lexer:
     ifTrue Lexer.collect_loop_end
     call Lexer.is_at_newline?
     ifTrue Lexer.collect_loop_end
+    ; call Lexer.is_at_string? TODO: strings
+    ; ifTrue Lexer.collect_string
     
     inc r13
     call Lexer.increment_cursor
@@ -195,6 +351,7 @@ Lexer:
     push rdx
     push r15
     mov r15, [r15 + LexerS.output]
+    mov rdi, rdx
     call TokenStorage.add_token
     pop r15
     pop rdx
@@ -213,6 +370,9 @@ Lexer:
     ifTrue Lexer.lexing_next
     call Lexer.match_number
     ifTrue Lexer.lexing_next
+
+    mov [rdx + CodeToken.type], tkWord
+    mov [rdx + CodeToken.subtype], 0
 
     .lexing_next:
     jmp Lexer.lexing
@@ -252,6 +412,7 @@ macro matchWord name, tk, tks=0 {
   matchWord symPC         , tkSymbol          , tvSymbolPC
   matchWord symCol        , tkSymbol          , tvSymbolCol
   matchWord symSim        , tkSymbol          , tvSymbolSim
+  matchWord symDot        , tkSymbol          , tvSymbolDot
 
   matchWord builtinCall   , tkBuiltinControl  , tvControlCall 
   matchWord builtinEval   , tkBuiltinControl  , tvControlEval 
@@ -311,12 +472,61 @@ macro matchWord name, tk, tks=0 {
 
 
 ; input:
+;   rdi: character
+.is_number?:
+  mov rax, true
+  cmp dil, 48
+  jl Lexer.is_number_false
+  cmp dil, 57
+  jg Lexer.is_number_false
+  jmp Lexer.is_number_true
+  .is_number_false:
+  mov rax, false
+  .is_number_true:
+  ret
+
+; input:
+;   rdi: character
+.is_number_middle?:
+  call Lexer.is_number?
+  ifTrue Lexer.is_number_middle_true
+  cmp dil, 95
+  je Lexer.is_number_middle_true
+  mov rax, false
+  .is_number_middle_true:
+  ret
+
+; input:
 ;   rdi: ptr
 ;   rsi: len
 ;   rdx: ptr token
 ; output:
 ;   rax: bool
 .match_number:
+  push rbx
+  push rdi
+  push r12
+  mov r12, rdi
+  xor rdi, rdi
+  mov dil, byte [r12]
+  call Lexer.is_number?
+  ifFalse Lexer.match_number_no_match
+  mov rbx, 1
+  .match_number_loop:
+    cmp rbx, rsi
+    je Lexer.match_number_match
+    
+    mov dil, byte [r12 + rbx]
+    call Lexer.is_number_middle?
+    ifFalse Lexer.match_number_no_match
+    inc rbx
+
+  .match_number_match:
+    mov [rdx + CodeToken.type], tkNumber
+    mov [rdx + CodeToken.subtype], tvNumInt
+    mov rax, true
+  .match_number_no_match:
+  pop r12
+  pop rdi
+  pop rbx
   ret
-
-

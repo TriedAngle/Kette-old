@@ -13,14 +13,31 @@ entry $
 
 
   with TokenStorage
-  mov rdi, programCode
-  mov rsi, programCodeLen
-  mov rdx, 0
-  mov rcx, 0
-  mov rcx, r15
-  with Lexer 
-    call Lexer.lex
-  endwith
+    mov r14, r15
+    mov rdi, programCode
+    mov rsi, programCodeLen
+    mov rdx, 0
+    mov rcx, r15
+    with Lexer 
+      call Lexer.lex
+    endwith
+    push rbx
+    call TokenStorage.size
+    mov r12, rax
+    mov rbx, 0
+    loop_test:
+      mov rdi, rbx
+      call TokenStorage.get_token
+      xor rcx, rcx
+      xor rdx, rdx
+      mov cl, [rax + CodeToken.type]
+      mov dl, [rax + CodeToken.subtype]
+      printlv rcx
+      printlv rdx
+      inc rbx
+      cmp rbx, r12
+      jne loop_test
+    pop rbx
   endwith
 
   call Memory.deallocFull

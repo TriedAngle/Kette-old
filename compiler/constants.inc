@@ -5,7 +5,7 @@ null = 0
 whitespace = 32
 newline = 10
 horizontalTab = 9
-quotes = 34
+double_quotes = 34
 
 macro newString name, string {
   name db string

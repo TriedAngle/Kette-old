@@ -74,10 +74,10 @@ macro with [obj] {
   common \} 
 }
 
-iota_n = 0
+iota_n = 1
 macro iota reset {
   if reset
-    iota_n = 0
+    iota_n = 1
   else
     iota_n = iota_n + 1
   end if
@@ -101,5 +101,10 @@ macro getArg n {
 
 macro ifTrue label {
   cmp rax, true
+  je label
+}
+
+macro ifFalse label {
+  cmp rax, false
   je label
 }
